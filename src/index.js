@@ -1,0 +1,3 @@
+/**
+ * An entry point.
+ */

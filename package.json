@@ -4,6 +4,7 @@
   "description": "Imaginary map rendering with Mapbox GL JS",
   "private": true,
   "scripts": {
+    "build": "webpack",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
