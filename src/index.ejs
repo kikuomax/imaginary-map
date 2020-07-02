@@ -2,12 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= htmlWebpackPlugin.options.title %></title>
+    <style>
+      body {
+        margin: 0 0;
+      }
+      .map-container {
+        width: 100%;
+        height: 100vh;
+      }
+    </style>
   </head>
   <body>
-    <div>
-      <p>Imaginary Map</p>
-    </div>
+    <div
+      id="map"
+      class="map-container"
+    />
   </body>
 </html>
