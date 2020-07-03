@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "build": "webpack",
+    "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -14,6 +15,7 @@
   "license": "MIT",
   "devDependencies": {
     "css-loader": "^3.6.0",
+    "express": "^4.17.1",
     "html-webpack-plugin": "^4.3.0",
     "mapbox-gl": "^1.11.0",
     "style-loader": "^1.2.1",
