@@ -40,7 +40,7 @@ const map = new mapboxgl.Map({
           `${baseUrl}tiles/{z}/{x}/{y}.pbf`
         ],
         minzoom: 0,
-        maxzoom: 0
+        maxzoom: 1
       }
     },
     layers: [
