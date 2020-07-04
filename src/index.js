@@ -21,9 +21,9 @@ const map = new mapboxgl.Map({
 })
 map.on('load', () => {
   map.addSource('imaginary', {
-    type: 'raster',
+    type: 'vector',
     tiles: [
-      `./tiles/{z}/{x}/{y}.png`
+      `${window.location.origin}/tiles/{z}/{x}/{y}.pbf`
     ],
     minzoom: 0,
     maxzoom: 0
@@ -31,8 +31,13 @@ map.on('load', () => {
   map.addLayer(
     {
       id: 'imaginary',
-      type: 'raster',
-      source: 'imaginary'
+      type: 'fill',
+      source: 'imaginary',
+      'source-layer': 'test',
+      paint: {
+        'fill-color': '#AFDB1C',
+        'fill-outline-color': '#181E04'
+      }
     }
   )
 })
