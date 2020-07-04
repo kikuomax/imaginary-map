@@ -52,7 +52,10 @@ func main () {
 	}
 	fmt.Println("converting GeoJSON")
 	layer := mvt.NewLayer("test", featureCollection)
-	layer.ProjectToTile(maptile.New(0, 0, 0))
+	const x = 1
+	const y = 1
+	const z = 1
+	layer.ProjectToTile(maptile.New(x, y, z))
 	layer.Simplify(simplify.DouglasPeucker(1.0))
 	layer.RemoveEmpty(1.0, 1.0)
 	mvtBytes, err := mvt.MarshalGzipped(mvt.Layers{ layer })
