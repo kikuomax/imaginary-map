@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/paulmach/orb/encoding/mvt"
 	"github.com/paulmach/orb/geojson"
@@ -42,8 +43,22 @@ func SaveMvt (mvtPath string, mvtBytes []byte) error {
 }
 
 func main () {
-	geoPath := os.Args[1]
-	mvtPath := os.Args[2]
+	x := flag.Uint(
+		"x",
+		0,
+		"x-coordinate value of a tile to be outputted")
+	y := flag.Uint(
+		"y",
+		0,
+		"y-coordinate value of a tile to be outputted")
+	z := flag.Uint(
+		"z",
+		0,
+		"z-coordinate value (zoom) of a tile to be outputted")
+	flag.Parse()
+	args := flag.Args()
+	geoPath := args[0]
+	mvtPath := args[1]
 	fmt.Printf("loading: %v\n", geoPath)
 	featureCollection, err := LoadGeoJson(geoPath)
 	if err != nil {
@@ -52,10 +67,10 @@ func main () {
 	}
 	fmt.Println("converting GeoJSON")
 	layer := mvt.NewLayer("test", featureCollection)
-	const x = 1
-	const y = 1
-	const z = 1
-	layer.ProjectToTile(maptile.New(x, y, z))
+	layer.ProjectToTile(maptile.New(
+		uint32(*x),
+		uint32(*y),
+		maptile.Zoom(*z)))
 	layer.Simplify(simplify.DouglasPeucker(1.0))
 	layer.RemoveEmpty(1.0, 1.0)
 	mvtBytes, err := mvt.MarshalGzipped(mvt.Layers{ layer })
