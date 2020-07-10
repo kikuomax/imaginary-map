@@ -71,6 +71,7 @@ func main () {
 		uint32(*x),
 		uint32(*y),
 		maptile.Zoom(*z)))
+	layer.Clip(mvt.MapboxGLDefaultExtentBound)
 	layer.Simplify(simplify.DouglasPeucker(1.0))
 	layer.RemoveEmpty(1.0, 1.0)
 	mvtBytes, err := mvt.MarshalGzipped(mvt.Layers{ layer })
