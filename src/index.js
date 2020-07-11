@@ -40,7 +40,7 @@ const map = new mapboxgl.Map({
           `${baseUrl}tiles/{z}/{x}/{y}.pbf`
         ],
         minzoom: 0,
-        maxzoom: 1
+        maxzoom: 3
       },
       papers: {
         type: 'vector',
