@@ -4,3 +4,6 @@
 # Editor artifacts
 *.swp
 *~
+
+# OS artifacts
+.DS_Store
