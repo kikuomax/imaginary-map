@@ -41,6 +41,14 @@ const map = new mapboxgl.Map({
         ],
         minzoom: 0,
         maxzoom: 1
+      },
+      papers: {
+        type: 'vector',
+        tiles: [
+          `${baseUrl}tiles/{z}/{x}/{y}-papers.pbf`
+        ],
+        minzoom: 3,
+        maxzoom: 4
       }
     },
     layers: [
@@ -59,6 +67,15 @@ const map = new mapboxgl.Map({
         paint: {
           'fill-color': '#AFDB1C',
           'fill-outline-color': '#181E04'
+        }
+      },
+      {
+        id: 'papers',
+        type: 'circle',
+        source: 'papers',
+        'source-layer': 'test',
+        paint: {
+          'circle-opacity': 0.5
         }
       }
     ]
