@@ -1,0 +1,3 @@
+# build artifacts
+/.aws-sam
+/api/*-packaged.yaml

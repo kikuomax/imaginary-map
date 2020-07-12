@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Template for the map tile deliver API'
+
+Parameters:
+  GeoJsonBucketName:
+    Description: 'Name of a S3 bucket that contains GeoJSON files'
+    Type: 'String'
+  IslandsGeoJsonVersion:
+    Description: 'Version of the GeoJSON file for islands'
+    Type: 'String'
+    Default: 'v1'
+  ProjectTagValue:
+    Description: 'Value of a "project" tag'
+    Type: 'String'
+    Default: 'imaginary-map'
+
+Resources:
+  GetIslandsTileFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: 'Generates a map tile vector at a given coordinate'
+      Runtime: 'go1.x'
+      Code: '../.aws-sam/build/GetIslandsTile'
+      Handler: 'main'
+      Role: !GetAtt GetIslandsTileFunctionRole.Arn
+      Environment:
+        Variables:
+          GEO_JSON_BUCKET_NAME: !Ref GeoJsonBucketName
+          ISLANDS_GEO_JSON_VERSION: !Ref IslandsGeoJsonVersion
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+  GetIslandsTileFunctionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Description: 'Role of the GetIslandsTile function'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+
+Outputs:
+  GetIslandsTileFunctionArn:
+    Description: 'ARN of the GetIslandsTile function'
+    Value: !GetAtt GetIslandsTileFunction.Arn

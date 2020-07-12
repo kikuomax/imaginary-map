@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Template for S3 buckets used by the API'
+
+Parameters:
+  ProjectTagValue:
+    Description: 'Value of the "project" tag'
+    Type: 'String'
+    Default: 'imaginary-map'
+
+Resources:
+  CodeRepository:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: TRUE
+        BlockPublicPolicy: TRUE
+        IgnorePublicAcls: TRUE
+        RestrictPublicBuckets: TRUE
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
+Outputs:
+  CodeRepositoryName:
+    Description: 'Name of the S3 bucket for Lambda function code'
+    Value: !Ref CodeRepository
