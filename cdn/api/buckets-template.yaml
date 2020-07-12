@@ -20,7 +20,22 @@ Resources:
         - Key: 'project'
           Value: !Ref ProjectTagValue
 
+  GeoJsonBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: TRUE
+        BlockPublicPolicy: TRUE
+        IgnorePublicAcls: TRUE
+        RestrictPublicBuckets: TRUE
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
 Outputs:
   CodeRepositoryName:
     Description: 'Name of the S3 bucket for Lambda function code'
     Value: !Ref CodeRepository
+  GeoJsonBucketName:
+    Description: 'Name of the S3 bucket for GetJSON files'
+    Value: !Ref GeoJsonBucket
