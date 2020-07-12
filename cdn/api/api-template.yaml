@@ -30,6 +30,9 @@ Resources:
       Tags:
         - Key: 'project'
           Value: !Ref ProjectTagValue
+    DependsOn:
+      # makes sure that this function is released before the policy
+      - GetGeoJsonPolicy
   GetIslandsTileFunctionRole:
     Type: 'AWS::IAM::Role'
     Properties:
@@ -41,6 +44,24 @@ Resources:
             Principal:
               Service: 'lambda.amazonaws.com'
             Action: 'sts:AssumeRole'
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
+  GetGeoJsonPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: 'get-geo-json-policy'
+      Roles:
+        - !Ref GetIslandsTileFunctionRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Action:
+              - 's3:GetObject'
+              - 's3:ListBucket'
+            Resource: !Sub 'arn:aws:s3:::${GeoJsonBucketName}/*'
 
 Outputs:
   GetIslandsTileFunctionArn:
