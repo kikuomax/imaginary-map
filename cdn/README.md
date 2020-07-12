@@ -37,9 +37,26 @@ You need the following software installed,
 
 3. Remember the S3 bucket name for GeoJSON files.
 
+    ```
+    GEO_JSON_BUCKET=`aws --query "Stacks[0].Outputs[?OutputKey=='GetJsonBucketName']|[0].OutputValue" cloudformation describe-stacks --stack-name imaginary-map-buckets | sed 's/^"//; s/"$//'`
+    ```
+
+   You have to specify an appropriate credential.
+
 You have to redo from the step 1 when you modify the template.
 
 ### Uploading GeoJSON files
+
+Suppose the following variable is defined,
+- `ISLANDS_GEO_JSON_VERSION`: version of the GeoJSON file for islands
+
+1. Upload a GeoJSON file of islands.
+
+    ```
+    aws s3 cp islands.json s3://$GEO_JSON_BUCKET/$ISLANDS_GEO_JSON_VERSION/islands.json
+    ```
+
+   You have to specify an appropriate credential.
 
 ### Building Lambda functions
 
@@ -63,7 +80,7 @@ You have to redo from the step 1 when you modify the template.
 3. Depoly functions.
 
     ```
-    aws cloudformation deploy --template-file api/api-template-packaged.yaml --stack-name imaginary-map-api --capabilities CAPABILITY_IAM --parameter-overrides GeoJsonBucketName=$GEO_JSON_BUCKET_NAME
+    aws cloudformation deploy --template-file api/api-template-packaged.yaml --stack-name imaginary-map-api --capabilities CAPABILITY_IAM --parameter-overrides GeoJsonBucketName=$GEO_JSON_BUCKET
     ```
 
    You have to specify an appropriate credential.
