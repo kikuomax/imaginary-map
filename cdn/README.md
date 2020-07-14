@@ -58,9 +58,9 @@ Suppose the following variable is defined,
 
    You have to specify an appropriate credential.
 
-### Building Lambda functions
+### Deploying API
 
-1. Build functions.
+1. Build Lambda functions.
 
     ```
     sam build --template api/lambda-functions.yaml
@@ -69,7 +69,7 @@ Suppose the following variable is defined,
    [`api/lambda-functions.yaml`](api/lambda-functions.yaml) is used only for building Lambda functions.
    Go cannot be built with the `--use-container` option.
 
-2. Package functions.
+2. Package Lambda functions.
 
     ```
     aws cloudformation package --template-file api/api-template.yaml --s3-bucket $CODE_REPOSITORY --output-template-file api/api-template-packaged.yaml
@@ -77,7 +77,7 @@ Suppose the following variable is defined,
 
    You have to specify an appropriate credential.
 
-3. Depoly functions.
+3. Depoly functions and API.
 
     ```
     aws cloudformation deploy --template-file api/api-template-packaged.yaml --stack-name imaginary-map-api --capabilities CAPABILITY_IAM --parameter-overrides GeoJsonBucketName=$GEO_JSON_BUCKET
