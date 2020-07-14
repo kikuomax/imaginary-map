@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	runtime "github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -109,5 +109,5 @@ func HandleRequest (ctx context.Context, event GetTileEvent) ([]byte, error) {
 }
 
 func main () {
-	runtime.Start(HandleRequest)
+	lambda.Start(HandleRequest)
 }
