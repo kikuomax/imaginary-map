@@ -65,7 +65,97 @@ Resources:
               - 's3:ListBucket'
             Resource: !Sub 'arn:aws:s3:::${GeoJsonBucketName}/*'
 
+  # REST API for map tile vectors
+  TileApi:
+    Type: 'AWS::ApiGateway::RestApi'
+    Properties:
+      Name: 'map-tile-vector-api'
+      Description: 'REST API that serves map tile vectors'
+      BinaryMediaTypes:
+        - 'application/x-protobuf'
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
+  # allows TileApi to call GetIslandsTileFunction
+  GetIslandsTileFunctionApiPermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      FunctionName: !GetAtt GetIslandsTileFunction.Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: 'apigateway.amazonaws.com'
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TileApi}/*/GET/*'
+
+  # /{zoom}
+  TileApiZoomResource:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref TileApi
+      ParentId: !GetAtt TileApi.RootResourceId
+      PathPart: '{zoom}'
+
+  # /{zoom}/{x}
+  TileApiZoomXResource:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref TileApi
+      ParentId: !Ref TileApiZoomResource
+      PathPart: '{x}'
+
+  # /{zoom}/{x}/{y}
+  TileApiZoomXYResource:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref TileApi
+      ParentId: !Ref TileApiZoomXResource
+      PathPart: '{y}'
+
+  # /{zoom}/{x}/{y}/islands.pbf
+  TileApiZoomXYIslandsResource:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref TileApi
+      ParentId: !Ref TileApiZoomXYResource
+      PathPart: 'islands.pbf'
+  # GET /{zoom}/{x}/{y}/islands.pbf
+  GetTileApiZoomXYIslands:
+    Type: 'AWS::ApiGateway::Method'
+    Properties:
+      OperationName: 'GET map tile vector at a given coordinate'
+      RestApiId: !Ref TileApi
+      ResourceId: !Ref TileApiZoomXYIslandsResource
+      HttpMethod: 'GET'
+      AuthorizationType: 'NONE'
+      Integration:
+        Type: 'AWS'
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetIslandsTileFunction.Arn}/invocations'
+        IntegrationHttpMethod: 'POST'
+        PassthroughBehavior: 'WHEN_NO_MATCH'
+        RequestTemplates:
+          'application/json': |
+            {
+              "Zoom": $input.params('zoom'),
+              "X": $input.params('x'),
+              "Y": $input.params('y')
+            }
+        IntegrationResponses:
+          - StatusCode: 200
+            ContentHandling: 'CONVERT_TO_BINARY'
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Content-Type: "'application/x-protobuf'"
+              method.response.header.Content-Encoding: "'gzip'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: false
+            method.response.header.Content-Type: false
+            method.response.header.Content-Encoding: false
+
 Outputs:
   GetIslandsTileFunctionArn:
     Description: 'ARN of the GetIslandsTile function'
     Value: !GetAtt GetIslandsTileFunction.Arn
+  TileApiId:
+    Description: 'ID of the TileApi'
+    Value: !Ref TileApi
