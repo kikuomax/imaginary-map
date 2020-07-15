@@ -12,10 +12,10 @@ Resources:
     Type: 'AWS::S3::Bucket'
     Properties:
       PublicAccessBlockConfiguration:
-        BlockPublicAcls: TRUE
-        BlockPublicPolicy: TRUE
-        IgnorePublicAcls: TRUE
-        RestrictPublicBuckets: TRUE
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       Tags:
         - Key: 'project'
           Value: !Ref ProjectTagValue
@@ -24,10 +24,28 @@ Resources:
     Type: 'AWS::S3::Bucket'
     Properties:
       PublicAccessBlockConfiguration:
-        BlockPublicAcls: TRUE
-        BlockPublicPolicy: TRUE
-        IgnorePublicAcls: TRUE
-        RestrictPublicBuckets: TRUE
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
+  AccessLogBucket:
+    Type: 'AWS::S3::Bucket'
+    DeletionPolicy: 'Retain'
+    Properties:
+      AccessControl: 'LogDeliveryWrite'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'AES256'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       Tags:
         - Key: 'project'
           Value: !Ref ProjectTagValue
@@ -39,3 +57,6 @@ Outputs:
   GeoJsonBucketName:
     Description: 'Name of the S3 bucket for GetJSON files'
     Value: !Ref GeoJsonBucket
+  AccessLogBucketDomainName:
+    Description: 'Domain name of the S3 bucket for access logs; e.g., from CloudFront'
+    Value: !GetAtt AccessLogBucket.DomainName

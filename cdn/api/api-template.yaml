@@ -3,7 +3,7 @@ Description: 'Template for the map tile deliver API'
 
 Parameters:
   GeoJsonBucketName:
-    Description: 'Name of a S3 bucket that contains GeoJSON files'
+    Description: 'Name of an S3 bucket that contains GeoJSON files'
     Type: 'String'
   IslandsGeoJsonVersion:
     Description: 'Version of the GeoJSON file for islands'
@@ -13,6 +13,9 @@ Parameters:
     Description: 'Stage of the tile API to be deployed'
     Type: 'String'
     Default: 'develop'
+  AccessLogBucketDomainName:
+    Description: 'Domain name of an S3 bucket where access logs are saved; e.g., from CloudFront'
+    Type: 'String'
   ProjectTagValue:
     Description: 'Value of a "project" tag'
     Type: 'String'
@@ -177,6 +180,10 @@ Resources:
             QueryString: false
           ViewerProtocolPolicy: 'https-only'
         PriceClass: 'PriceClass_200'
+        Logging:
+          Bucket: !Sub '${AccessLogBucketDomainName}'
+          Prefix: 'map-tile-cdn/'
+          IncludeCookies: false
       Tags:
         - Key: 'project'
           Value: !Ref ProjectTagValue
