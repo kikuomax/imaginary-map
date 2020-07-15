@@ -43,6 +43,14 @@ You need the following software installed,
 
    You have to specify an appropriate credential.
 
+4. Remember the S3 bucket domain name for access logs.
+
+    ```
+    ACCESS_LOG_BUCKET=`aws --query "Stacks[0].Outputs[?OutputKey=='AccessLogBucketDomainName']|[0].OutputValue" cloudformation describe-stacks --stack-name imaginary-map-buckets | sed 's/^"//; s/"$//'`
+    ```
+
+   You have to specify an appropriate credential.
+
 You have to redo from the step 1 when you modify the template.
 
 ### Uploading GeoJSON files
@@ -80,7 +88,7 @@ Suppose the following variable is defined,
 3. Depoly functions and API.
 
     ```
-    aws cloudformation deploy --template-file api/api-template-packaged.yaml --stack-name imaginary-map-api --capabilities CAPABILITY_IAM --parameter-overrides GeoJsonBucketName=$GEO_JSON_BUCKET
+    aws cloudformation deploy --template-file api/api-template-packaged.yaml --stack-name imaginary-map-api --capabilities CAPABILITY_IAM --parameter-overrides GeoJsonBucketName=$GEO_JSON_BUCKET AccessLogBucketDomainName=$ACCESS_LOG_BUCKET
     ```
 
    You have to specify an appropriate credential.
