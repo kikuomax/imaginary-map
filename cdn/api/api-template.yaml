@@ -9,6 +9,10 @@ Parameters:
     Description: 'Version of the GeoJSON file for islands'
     Type: 'String'
     Default: 'v1'
+  TileApiStage:
+    Description: 'Stage of the tile API to be deployed'
+    Type: 'String'
+    Default: 'develop'
   ProjectTagValue:
     Description: 'Value of a "project" tag'
     Type: 'String'
@@ -152,6 +156,31 @@ Resources:
             method.response.header.Content-Type: false
             method.response.header.Content-Encoding: false
 
+  # CloudFront distribution
+  TileApiDistribution:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Origins:
+          - Id: !Sub '${AWS::StackName}-tile-api'
+            DomainName: !Sub '${TileApi}.execute-api.${AWS::Region}.amazonaws.com'
+            OriginPath: !Sub '/${TileApiStage}'
+            CustomOriginConfig:
+              OriginProtocolPolicy: 'https-only'
+              OriginSSLProtocols:
+                - 'TLSv1.2'
+        DefaultCacheBehavior:
+          TargetOriginId: !Sub '${AWS::StackName}-tile-api'
+          Compress: true
+          ForwardedValues:
+            QueryString: false
+          ViewerProtocolPolicy: 'https-only'
+        PriceClass: 'PriceClass_200'
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
 Outputs:
   GetIslandsTileFunctionArn:
     Description: 'ARN of the GetIslandsTile function'
@@ -159,3 +188,6 @@ Outputs:
   TileApiId:
     Description: 'ID of the TileApi'
     Value: !Ref TileApi
+  TileApiDistributionDomain:
+    Description: 'Domain name of the map tile vector CDN'
+    Value: !GetAtt TileApiDistribution.DomainName
