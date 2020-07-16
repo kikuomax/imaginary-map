@@ -57,7 +57,7 @@ You have to specify a CDN URL to a `tile-api` query parameter.
 Suppose you have a CDN running at `https://xyz.cloudfront.net`, open the following URL.
 
 ```
-https://localhost:3000/?tile-api=https%3A%2F%2Fxyz.cloudfront.net
+http://localhost:3000/?tile-api=https%3A%2F%2Fxyz.cloudfront.net
 ```
 
 ## References
