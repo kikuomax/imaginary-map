@@ -9,6 +9,10 @@ Parameters:
     Description: 'Version of the GeoJSON file for islands'
     Type: 'String'
     Default: 'v1'
+  PapersGeoJsonVersion:
+    Description: 'Version of the GeoJSON file for papers'
+    Type: 'String'
+    Default: 'v1'
   TileApiStage:
     Description: 'Stage of the tile API to be deployed'
     Type: 'String'
@@ -25,10 +29,11 @@ Resources:
   GetIslandsTileFunction:
     Type: 'AWS::Lambda::Function'
     Properties:
-      Description: 'Generates a map tile vector at a given coordinate'
+      Description: 'Generates a map vector tile at a given coordinate'
       Runtime: 'go1.x'
       Code: '../.aws-sam/build/GetIslandsTile'
       Handler: 'main'
+      Timeout: 6 # it took about 1400ms at benchmark
       Role: !GetAtt GetIslandsTileFunctionRole.Arn
       Environment:
         Variables:
@@ -57,12 +62,54 @@ Resources:
         - Key: 'project'
           Value: !Ref ProjectTagValue
 
+  GetPapersTileFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: 'Generates a map vector tile at a given coordinate'
+      Runtime: 'go1.x'
+      Code: '../.aws-sam/build/GetPapersTile'
+      Handler: 'main'
+      # you may think increasing MemorySize will charge more.
+      # but it actually does not matter
+      # because the processing gets faster with lager memory.
+      # it took 6000ms with 128MB and 1700ms with 512MB.
+      MemorySize: 512
+      Timeout: 6 # it took about 1700ms at benchmark
+      Role: !GetAtt GetPapersTileFunctionRole.Arn
+      Environment:
+        Variables:
+          GEO_JSON_BUCKET_NAME: !Ref GeoJsonBucketName
+          PAPERS_GEO_JSON_VERSION: !Ref PapersGeoJsonVersion
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+    DependsOn:
+      # makes sure that this function is released before the policy
+      - GetGeoJsonPolicy
+  GetPapersTileFunctionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Description: 'Role of the GetPapersTile function'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
   GetGeoJsonPolicy:
     Type: 'AWS::IAM::Policy'
     Properties:
       PolicyName: 'get-geo-json-policy'
       Roles:
         - !Ref GetIslandsTileFunctionRole
+        - !Ref GetPapersTileFunctionRole
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -72,12 +119,12 @@ Resources:
               - 's3:ListBucket'
             Resource: !Sub 'arn:aws:s3:::${GeoJsonBucketName}/*'
 
-  # REST API for map tile vectors
+  # REST API for map vector tiles
   TileApi:
     Type: 'AWS::ApiGateway::RestApi'
     Properties:
-      Name: 'map-tile-vector-api'
-      Description: 'REST API that serves map tile vectors'
+      Name: 'map-vector-tile-api'
+      Description: 'REST API that serves map vector tiles'
       BinaryMediaTypes:
         - 'application/x-protobuf'
       Tags:
@@ -89,6 +136,15 @@ Resources:
     Type: 'AWS::Lambda::Permission'
     Properties:
       FunctionName: !GetAtt GetIslandsTileFunction.Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: 'apigateway.amazonaws.com'
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TileApi}/*/GET/*'
+
+  # allows TileApi to call GetPapersTileFunction
+  GetPapersTileFunctionApiPermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      FunctionName: !GetAtt GetPapersTileFunction.Arn
       Action: 'lambda:InvokeFunction'
       Principal: 'apigateway.amazonaws.com'
       SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TileApi}/*/GET/*'
@@ -128,7 +184,7 @@ Resources:
   GetTileApiZoomXYIslands:
     Type: 'AWS::ApiGateway::Method'
     Properties:
-      OperationName: 'GET map tile vector at a given coordinate'
+      OperationName: 'GET map vector tile at a given coordinate'
       RestApiId: !Ref TileApi
       ResourceId: !Ref TileApiZoomXYIslandsResource
       HttpMethod: 'GET'
@@ -136,6 +192,48 @@ Resources:
       Integration:
         Type: 'AWS'
         Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetIslandsTileFunction.Arn}/invocations'
+        IntegrationHttpMethod: 'POST'
+        PassthroughBehavior: 'WHEN_NO_MATCH'
+        RequestTemplates:
+          'application/json': |
+            {
+              "Zoom": $input.params('zoom'),
+              "X": $input.params('x'),
+              "Y": $input.params('y')
+            }
+        IntegrationResponses:
+          - StatusCode: 200
+            ContentHandling: 'CONVERT_TO_BINARY'
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Content-Type: "'application/x-protobuf'"
+              method.response.header.Content-Encoding: "'gzip'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: false
+            method.response.header.Content-Type: false
+            method.response.header.Content-Encoding: false
+
+  # /{zoom}/{x}/{y}/papers.pbf
+  TileApiZoomXYPapersResource:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref TileApi
+      ParentId: !Ref TileApiZoomXYResource
+      PathPart: 'papers.pbf'
+  # GET /{zoom}/{x}/{y}/papers.pbf
+  GetTileApiZoomXYPapers:
+    Type: 'AWS::ApiGateway::Method'
+    Properties:
+      OperationName: 'GET map vector tile at a given coordinate'
+      RestApiId: !Ref TileApi
+      ResourceId: !Ref TileApiZoomXYPapersResource
+      HttpMethod: 'GET'
+      AuthorizationType: 'NONE'
+      Integration:
+        Type: 'AWS'
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetPapersTileFunction.Arn}/invocations'
         IntegrationHttpMethod: 'POST'
         PassthroughBehavior: 'WHEN_NO_MATCH'
         RequestTemplates:
@@ -192,9 +290,12 @@ Outputs:
   GetIslandsTileFunctionArn:
     Description: 'ARN of the GetIslandsTile function'
     Value: !GetAtt GetIslandsTileFunction.Arn
+  GetPapersTileFunctionArn:
+    Description: 'ARN of the GetPapersTile function'
+    Value: !GetAtt GetPapersTileFunction.Arn
   TileApiId:
     Description: 'ID of the TileApi'
     Value: !Ref TileApi
-  TileApiDistributionDomain:
-    Description: 'Domain name of the map tile vector CDN'
+  TileApiDistributionDomainName:
+    Description: 'Domain name of the map vector tile CDN'
     Value: !GetAtt TileApiDistribution.DomainName
