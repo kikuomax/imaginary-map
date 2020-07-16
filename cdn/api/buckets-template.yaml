@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Template for S3 buckets used by the API'
+
+Parameters:
+  ProjectTagValue:
+    Description: 'Value of the "project" tag'
+    Type: 'String'
+    Default: 'imaginary-map'
+
+Resources:
+  CodeRepository:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
+  GeoJsonBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
+  AccessLogBucket:
+    Type: 'AWS::S3::Bucket'
+    DeletionPolicy: 'Retain'
+    Properties:
+      AccessControl: 'LogDeliveryWrite'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'AES256'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
+Outputs:
+  CodeRepositoryName:
+    Description: 'Name of the S3 bucket for Lambda function code'
+    Value: !Ref CodeRepository
+  GeoJsonBucketName:
+    Description: 'Name of the S3 bucket for GetJSON files'
+    Value: !Ref GeoJsonBucket
+  AccessLogBucketDomainName:
+    Description: 'Domain name of the S3 bucket for access logs; e.g., from CloudFront'
+    Value: !GetAtt AccessLogBucket.DomainName
