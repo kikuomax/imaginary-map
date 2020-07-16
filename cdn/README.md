@@ -1,5 +1,9 @@
 # Contents Delivery Network for Map Tiles
 
+Here is a schematic diagram of the service.
+
+![Tile Delivery Service](tile-delivery-service.png)
+
 ## Map Tile Generator
 
 A map tile generator is a Lambda function on AWS.
@@ -75,7 +79,7 @@ Suppose the following variable is defined,
 
    You have to specify an appropriate credential.
 
-### Deploying API
+### Deploying API stack
 
 1. Build Lambda functions.
 
@@ -103,3 +107,8 @@ Suppose the following variable is defined,
    You have to specify an appropriate credential.
 
 You have to redo from the step 1 when you modify function code, from the step 2 when you modify the template.
+
+### Deploying API Gateway
+
+The CloudFront asks a `develop` stage of the API for new map vector tiles.
+You have to manually deploy a `develop` stage of the API to enable the CDN.
