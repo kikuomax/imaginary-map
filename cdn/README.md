@@ -57,11 +57,20 @@ You have to redo from the step 1 when you modify the template.
 
 Suppose the following variable is defined,
 - `ISLANDS_GEO_JSON_VERSION`: version of the GeoJSON file for islands
+- `PAPERS_GEO_JSON_VERSION`: version of the GeoJSON file for papers
 
 1. Upload a GeoJSON file of islands.
 
     ```
     aws s3 cp islands.json s3://$GEO_JSON_BUCKET/$ISLANDS_GEO_JSON_VERSION/islands.json
+    ```
+
+   You have to specify an appropriate credential.
+
+2. Upload a GeoJSON file of papers.
+
+    ```
+    aws s3 cp papers.json s3://$GEO_JSON_BUCKET/$PAPERS_GEO_JSON_VERSION/papers.json
     ```
 
    You have to specify an appropriate credential.
