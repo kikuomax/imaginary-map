@@ -2,6 +2,8 @@
 
 A PoC project that renders an imaginary map using a [Mapbox GL JS](https://docs.mapbox.com/mapbox-gl-js/api/) API.
 
+This project is a sister project of [COVID-19 research](https://github.com/metasphere-xyz/covid19-research).
+
 ## Prerequisites
 
 You need the following software installed,
@@ -36,7 +38,12 @@ npm run build -- --mode=production
 ## Making a Mapbox vector tiles
 
 There is a Go program that converts a GeoJSON object into a Mapbox vector tile object.
-Please refer to [`tools/geo2html`](tools/geo2html).
+Please refer to [`tools/geo2html`](tools/geo2html) for more information.
+
+## Hosting a CDN for map vector tiles
+
+You can serve map vector tiles through a CDN powered by [AWS CloudFront](https://aws.amazon.com/cloudfront/).
+Please refer to [`cdn`](cdn) for more information.
 
 ## References
 
