@@ -1,4 +1,4 @@
-module github.com/kikuomax/imaginary-map/cdn/common
+module github.com/kikuomax/imaginary-map
 
 go 1.13
 
