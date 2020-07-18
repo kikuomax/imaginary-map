@@ -22,3 +22,10 @@ jobs:
       - run: 'go version'
       - name: 'Test all packages'
         run: 'go test -v ./...'
+      # builds Lambda functions
+      - name: 'build get-islands-tile'
+        run: 'go build'
+        working-directory: './cdn/api/get-islands-tile'
+      - name: 'build get-papers-tile'
+        run: 'go build'
+        working-directory: './cdn/api/get-papers-tile'
