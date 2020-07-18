@@ -23,9 +23,9 @@ jobs:
       - name: 'Test all packages'
         run: 'go test -v ./...'
       # builds Lambda functions
-      - name: 'build get-islands-tile'
+      - name: 'Build get-islands-tile'
         run: 'go build'
         working-directory: './cdn/api/get-islands-tile'
-      - name: 'build get-papers-tile'
+      - name: 'Build get-papers-tile'
         run: 'go build'
         working-directory: './cdn/api/get-papers-tile'
