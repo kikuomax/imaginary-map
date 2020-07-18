@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -39,7 +40,12 @@ func LoadGeoJson () (*geojson.FeatureCollection, error) {
 // Generates a map vector tile at a given coordinate.
 func GenerateMapVectorTile (fc *geojson.FeatureCollection, event common.GetTileEvent) ([]byte, error) {
 	layer := mvt.NewLayer(LAYER_NAME, fc)
-	layer.ProjectToTile(event.ToTile())
+	tile, ok := event.ToTile()
+	if !ok {
+		return nil, errors.New(
+			fmt.Sprintf("invalid tile coordinate: %v", event))
+	}
+	layer.ProjectToTile(tile)
 	layer.Clip(mvt.MapboxGLDefaultExtentBound)
 	layer.Simplify(simplify.DouglasPeucker(1.0))
 	layer.RemoveEmpty(1.0, 1.0)
