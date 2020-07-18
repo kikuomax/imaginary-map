@@ -84,24 +84,15 @@ Suppose the following variable is defined,
 1. Build Lambda functions.
 
     ```
-    sam build --template api/lambda-functions.yaml
+    sam build --template api/api-template.yaml
     ```
 
-   [`api/lambda-functions.yaml`](api/lambda-functions.yaml) is used only for building Lambda functions.
    Go cannot be built with the `--use-container` option.
 
-2. Package Lambda functions.
+2. Package and deploy functions and API.
 
     ```
-    aws cloudformation package --template-file api/api-template.yaml --s3-bucket $CODE_REPOSITORY --output-template-file api/api-template-packaged.yaml
-    ```
-
-   You have to specify an appropriate credential.
-
-3. Depoly functions and API.
-
-    ```
-    aws cloudformation deploy --template-file api/api-template-packaged.yaml --stack-name imaginary-map-api --capabilities CAPABILITY_IAM --parameter-overrides GeoJsonBucketName=$GEO_JSON_BUCKET AccessLogBucketDomainName=$ACCESS_LOG_BUCKET
+    sam deploy --stack-name imaginary-map-api --capabilities CAPABILITY_IAM --s3-bucket $CODE_REPOSITORY --parameter-overrides GeoJsonBucketName=$GEO_JSON_BUCKET AccessLogBucketDomainName=$ACCESS_LOG_BUCKET
     ```
 
    You have to specify an appropriate credential.
