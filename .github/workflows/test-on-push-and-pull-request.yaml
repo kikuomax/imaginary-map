@@ -1,8 +1,9 @@
-name: 'Runs tests on pull request'
-on: 'push' # for tests only
-#  pull_request:
-#    branches:
-#      - 'master'
+name: 'Runs tests on push and pull request'
+on:
+  push:
+  pull_request:
+    branches:
+      - 'master'
 
 jobs:
   build:
@@ -22,7 +23,7 @@ jobs:
       - run: 'go version'
       - name: 'Test all packages'
         run: 'go test -v ./...'
-      # builds Lambda functions
+      # just builds Lambda functions
       - name: 'Build get-islands-tile'
         run: 'go build'
         working-directory: './cdn/api/get-islands-tile'
