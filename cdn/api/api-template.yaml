@@ -1,4 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
 Description: 'Template for the map tile deliver API'
 
 Parameters:
@@ -27,11 +28,11 @@ Parameters:
 
 Resources:
   GetIslandsTileFunction:
-    Type: 'AWS::Lambda::Function'
+    Type: 'AWS::Serverless::Function'
     Properties:
       Description: 'Generates a map vector tile at a given coordinate'
       Runtime: 'go1.x'
-      Code: '../.aws-sam/build/GetIslandsTile'
+      CodeUri: 'get-islands-tile'
       Handler: 'main'
       Timeout: 6 # it took about 1400ms at benchmark
       Role: !GetAtt GetIslandsTileFunctionRole.Arn
@@ -40,8 +41,7 @@ Resources:
           GEO_JSON_BUCKET_NAME: !Ref GeoJsonBucketName
           ISLANDS_GEO_JSON_VERSION: !Ref IslandsGeoJsonVersion
       Tags:
-        - Key: 'project'
-          Value: !Ref ProjectTagValue
+        project: !Ref ProjectTagValue
     DependsOn:
       # makes sure that this function is released before the policy
       - GetGeoJsonPolicy
@@ -63,11 +63,11 @@ Resources:
           Value: !Ref ProjectTagValue
 
   GetPapersTileFunction:
-    Type: 'AWS::Lambda::Function'
+    Type: 'AWS::Serverless::Function'
     Properties:
       Description: 'Generates a map vector tile at a given coordinate'
       Runtime: 'go1.x'
-      Code: '../.aws-sam/build/GetPapersTile'
+      CodeUri: 'get-papers-tile/.'
       Handler: 'main'
       # you may think increasing MemorySize will charge more.
       # but it actually does not matter
@@ -81,8 +81,7 @@ Resources:
           GEO_JSON_BUCKET_NAME: !Ref GeoJsonBucketName
           PAPERS_GEO_JSON_VERSION: !Ref PapersGeoJsonVersion
       Tags:
-        - Key: 'project'
-          Value: !Ref ProjectTagValue
+        project: !Ref ProjectTagValue
     DependsOn:
       # makes sure that this function is released before the policy
       - GetGeoJsonPolicy
