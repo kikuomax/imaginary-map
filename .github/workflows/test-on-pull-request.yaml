@@ -7,7 +7,7 @@ on: 'push' # for tests only
 jobs:
   build:
     name: 'Build and test the Go module'
-    runs_on: 'ubuntu-latest'
+    runs-on: 'ubuntu-latest'
     strategy:
       matrix:
         go-version:
