@@ -15,6 +15,8 @@ github.com/kikuomax/imaginary-map v0.1.1 h1:nB8x5IH9f8xdwTzS0sOrKaxj4TI0NI4BTD22
 github.com/kikuomax/imaginary-map v0.1.1/go.mod h1:rZQvtTTjzI9mQhxx04+s5o4vId9YAN0pFWk/Wn1Bf6U=
 github.com/kikuomax/imaginary-map v0.1.2-rc1 h1:IL2HrkJzaB7mrZhRk+dFpAVuelBdD86PIwbAhO20AZM=
 github.com/kikuomax/imaginary-map v0.1.2-rc1/go.mod h1:rZQvtTTjzI9mQhxx04+s5o4vId9YAN0pFWk/Wn1Bf6U=
+github.com/kikuomax/imaginary-map v0.1.2 h1:tTSzd5udVwHyTEGE9vAdEMRJb7K7ZC8nTN1SXurhRKY=
+github.com/kikuomax/imaginary-map v0.1.2/go.mod h1:rZQvtTTjzI9mQhxx04+s5o4vId9YAN0pFWk/Wn1Bf6U=
 github.com/kisielk/errcheck v1.2.0/go.mod h1:/BMXB+zMLi60iA8Vv6Ksmxu/1UDYcXs4uQLJ+jE2L00=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/paulmach/orb v0.1.6 h1:C8klK4r0mR0MnfSk+GvEFFKLrQVwjQ+FlhtXgpaupjg=
