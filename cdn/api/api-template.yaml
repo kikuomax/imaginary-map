@@ -18,9 +18,6 @@ Parameters:
     Description: 'Stage of the tile API to be deployed'
     Type: 'String'
     Default: 'develop'
-  AccessLogBucketDomainName:
-    Description: 'Domain name of an S3 bucket where access logs are saved; e.g., from CloudFront'
-    Type: 'String'
   ProjectTagValue:
     Description: 'Value of a "project" tag'
     Type: 'String'
@@ -278,9 +275,26 @@ Resources:
           ViewerProtocolPolicy: 'https-only'
         PriceClass: 'PriceClass_200'
         Logging:
-          Bucket: !Sub '${AccessLogBucketDomainName}'
+          Bucket: !GetAtt AccessLogBucket.DomainName
           Prefix: 'map-tile-cdn/'
           IncludeCookies: false
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
+  AccessLogBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      AccessControl: 'LogDeliveryWrite'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'AES256'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       Tags:
         - Key: 'project'
           Value: !Ref ProjectTagValue
@@ -298,3 +312,6 @@ Outputs:
   TileApiDistributionDomainName:
     Description: 'Domain name of the map vector tile CDN'
     Value: !GetAtt TileApiDistribution.DomainName
+  AccessLogBucketName:
+    Description: 'Name of the S3 bucket for access logs from CloudFront'
+    Value: !Ref AccessLogBucket

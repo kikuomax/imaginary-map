@@ -1,0 +1,296 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CodePipeline configuration for the map tile delivery service'
+
+Parameters:
+  ProjectStackNamePrefix:
+    Description: 'Prefix of stack names'
+    Type: 'String'
+    Default: 'imaginary-map-'
+  GeoJsonBucketName:
+    Description: 'Name of the S3 bucket for GeoJSON files'
+    Type: 'String'
+  GitHubRepoOwnerName:
+    Description: 'Name of the owner of the GitHub repository containing the source code of the map tile delivery service'
+    Type: 'String'
+  GitHubRepoName:
+    Description: 'Name of the GitHub repository containing source of the source code of the map tile delivery service'
+    Type: 'String'
+  GitHubRepoBranch:
+    Description: 'Name of the branch of the GitHub repository containing the source code of the map tile delivery service'
+    Type: 'String'
+    Default: 'master'
+  GitHubRepoAccessTokenKey:
+    Description: 'Name of the key associated with an access token for the GitHub repository, which is managed by AWS Secrets Manager'
+    Type: 'String'
+  ProjectTagValue:
+    Description: 'Value of the "project" tag'
+    Type: 'String'
+    Default: 'imaginary-map'
+
+Resources:
+  # Reference: https://github.com/aws-samples/cookiecutter-aws-sam-pipeline/blob/f50dfee4f1dd2e618bd3c23098ce0e8b679d5c77/%7B%7Bcookiecutter.project_name%7D%7D/pipeline.yaml#L117
+  TileApiCodePipeline:
+    Type: 'AWS::CodePipeline::Pipeline'
+    Properties:
+      ArtifactStore:
+        Type: 'S3'
+        Location: !Ref TileApiCodePipelineArtifactsBucket
+      RoleArn: !GetAtt TileApiCodePipelineRole.Arn
+      Stages:
+        - Name: 'source'
+          Actions:
+            - Name: 'tile-api-checkout'
+              ActionTypeId:
+                Category: 'Source'
+                Owner: 'ThirdParty'
+                Provider: 'GitHub'
+                Version: '1'
+              Configuration:
+                Owner: !Ref GitHubRepoOwnerName
+                Repo: !Ref GitHubRepoName
+                Branch: !Ref GitHubRepoBranch
+                OAuthToken: !Sub '{{resolve:secretsmanager:${GitHubRepoAccessTokenKey}}}'
+              OutputArtifacts:
+                - Name: 'tile-api-source-code'
+              RunOrder: 1
+        - Name: 'build'
+          Actions:
+            - Name: 'tile-api-build'
+              ActionTypeId:
+                Category: 'Build'
+                Owner: 'AWS'
+                Provider: 'CodeBuild'
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref TileApiCodeBuildProject
+                PrimarySource: 'tile-api-source-code'
+              InputArtifacts:
+                - Name: 'tile-api-source-code'
+              OutputArtifacts:
+                - Name: 'tile-api-template'
+              RunOrder: 1
+        - Name: 'deploy'
+          Actions:
+            - Name: 'tile-api-code-create-change-set'
+              ActionTypeId:
+                Category: 'Deploy'
+                Owner: 'AWS'
+                Provider: 'CloudFormation'
+                Version: '1'
+              Configuration:
+                ActionMode: 'CHANGE_SET_REPLACE'
+                StackName: !Sub '${ProjectStackNamePrefix}api'
+                ChangeSetName: !Sub '${ProjectStackNamePrefix}api-change-set'
+                Capabilities: 'CAPABILITY_IAM'
+                TemplatePath: 'tile-api-template::cdn/api/api-template-packaged.yaml'
+                ParameterOverrides: !Sub '{ "GeoJsonBucketName": "${GeoJsonBucketName}" }'
+                RoleArn: !GetAtt TileApiCloudFormationRole.Arn
+              InputArtifacts:
+                - Name: 'tile-api-template'
+              RunOrder: 1
+            - Name: 'tile-api-code-execute-change-set'
+              ActionTypeId:
+                Category: 'Deploy'
+                Owner: 'AWS'
+                Provider: 'CloudFormation'
+                Version: '1'
+              Configuration:
+                ActionMode: 'CHANGE_SET_EXECUTE'
+                StackName: !Sub '${ProjectStackNamePrefix}api'
+                ChangeSetName: !Sub '${ProjectStackNamePrefix}api-change-set'
+              RunOrder: 2
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
+  # Reference: https://github.com/aws-samples/cookiecutter-aws-sam-pipeline/blob/f50dfee4f1dd2e618bd3c23098ce0e8b679d5c77/%7B%7Bcookiecutter.project_name%7D%7D/pipeline.yaml#L348
+  TileApiCodePipelineRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service:
+                - 'codepipeline.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'code-pipeline-access'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'iam:PassRole'
+                  - 'lambda:InvokeFunction'
+                  - 'lambda:ListFunctions'
+                  - 'lambda:InvokeAsyc'
+                Resource: '*'
+        - PolicyName: 'code-pipeline-artifacts-s3-bucket'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action: 's3:*'
+                Resource: !Sub '${TileApiCodePipelineArtifactsBucket.Arn}/*'
+        - PolicyName: 'code-pipeline-code-build-and-cloudformation-access'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'codebuild:StartBuild'
+                  - 'codebuild:BatchGetBuilds'
+                Resource:
+                  - !GetAtt TileApiCodeBuildProject.Arn
+              - Effect: 'Allow'
+                Action:
+                  - 'cloudformation:CreateStack'
+                  - 'cloudformation:DescribeStacks'
+                  - 'cloudformation:DeleteStack'
+                  - 'cloudformation:UpdateStack'
+                  - 'cloudformation:CreateChangeSet'
+                  - 'cloudformation:ExecuteChangeSet'
+                  - 'cloudformation:DeleteChangeSet'
+                  - 'cloudformation:DescribeChangeSet'
+                  - 'cloudformation:SetStackPolicy'
+                  - 'cloudformation:ValidateTemplate'
+                Resource:
+                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ProjectStackNamePrefix}*/*'
+                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31'
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
+  TileApiCloudFormationRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Description: 'Role of CloudFormation for the map tile delivery service'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service:
+                - 'cloudformation.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'cloudformation'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'apigateway:*'
+                  - 'codedeploy:*'
+                  - 'lambda:*'
+                  - 'cloudfront:*'
+                  - 'cloudformation:CreateChangeSet'
+                  - 'iam:GetRole'
+                  - 'iam:CreateRole'
+                  - 'iam:DeleteRole'
+                  - 'iam:PutRolePolicy'
+                  - 'iam:AttachRolePolicy'
+                  - 'iam:DeleteRolePolicy'
+                  - 'iam:DetachRolePolicy'
+                  - 'iam:PassRole'
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                  - 's3:GetBucketVersioning'
+                Resource: '*'
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
+  # Reference: https://github.com/aws-samples/cookiecutter-aws-sam-pipeline/blob/f50dfee4f1dd2e618bd3c23098ce0e8b679d5c77/%7B%7Bcookiecutter.project_name%7D%7D/pipeline.yaml#L80
+  TileApiCodeBuildProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Description: 'Build tile delivery API'
+      Artifacts:
+        Type: 'CODEPIPELINE'
+      Source:
+        Type: 'CODEPIPELINE'
+        BuildSpec: 'cdn/buildspec.yaml'
+      Environment:
+        Type: 'LINUX_CONTAINER'
+        ComputeType: 'BUILD_GENERAL1_SMALL'
+        Image: 'aws/codebuild/amazonlinux2-x86_64-standard:3.0'
+        EnvironmentVariables:
+          - Name: 'CODE_REPOSITORY'
+            Value: !Ref TileApiCodePipelineArtifactsBucket
+      LogsConfig:
+        CloudWatchLogs:
+          Status: 'ENABLED'
+      Cache:
+        Type: 'S3'
+        Location: !Sub '${TileApiCodePipelineArtifactsBucket}/code-build-cache'
+      ServiceRole: !GetAtt TileApiCodeBuildProjectRole.Arn
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
+  TileApiCodeBuildProjectRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service:
+                - 'codebuild.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'code-build-logs'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource:
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/TileApiCodeBuildProject-*'
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/TileApiCodeBuildProject-*:*'
+        - PolicyName: 'code-build-artifacts-bucket'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                  - 's3:PutObject'
+                Resource:
+                  - !Sub '${TileApiCodePipelineArtifactsBucket.Arn}/*'
+        - PolicyName: 'code-build-parameter-store'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action: 'ssm:GetParameters'
+                Resource: '*'
+
+  TileApiCodePipelineArtifactsBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'AES256'
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
+Outputs:
+  TileApiCodePipelineArtifactsBucketName:
+    Description: 'Name of the S3 bucket for CodePipeline artifacts'
+    Value: !Ref TileApiCodePipelineArtifactsBucket

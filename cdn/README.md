@@ -4,6 +4,9 @@ Here is a schematic diagram of the service.
 
 ![Tile Delivery Service](tile-delivery-service.png)
 
+The following instructions explain how to configure a map vector tile API step by step.
+These steps are integrated into an AWS CodePipeline that is described in [`continuous-delivery.md`](continuous-delivery.md).
+
 ## Map Tile Generator
 
 A map tile generator is a Lambda function on AWS.
@@ -21,41 +24,41 @@ You need the following software installed,
 - [AWS CLI](https://aws.amazon.com/cli/?nc1=h_ls)
 - [AWS SAM](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html)
 
-### Preparing S3 buckets
+### Creating an S3 bucket for code
 
-1. Deploy S3 buckets.
-
-    ```
-    aws cloudformation deploy --template-file api/buckets-template.yaml --stack-name imaginary-map-buckets
-    ```
-
-   You have to specify an appropriate credential.
-
-2. Remember the S3 bucket name for Lambda function code.
+1. Deploy [`api/code-bucket-template.yaml`](api/code-bucket-template.yaml).
 
     ```
-    CODE_REPOSITORY=`aws --query "Stacks[0].Outputs[?OutputKey=='CodeRepositoryName']|[0].OutputValue" cloudformation describe-stacks --stack-name imaginary-map-buckets | sed 's/^"//; s/"$//'`
+    aws cloudformation deploy --template-file api/code-bucket-template.yaml --stack-name imaginary-map-code-bucket
     ```
 
    You have to specify an appropriate credential.
 
-3. Remember the S3 bucket name for GeoJSON files.
+2. Remember the S3 bucket name as `CODE_REPOSITORY`.
 
     ```
-    GEO_JSON_BUCKET=`aws --query "Stacks[0].Outputs[?OutputKey=='GeoJsonBucketName']|[0].OutputValue" cloudformation describe-stacks --stack-name imaginary-map-buckets | sed 's/^"//; s/"$//'`
-    ```
-
-   You have to specify an appropriate credential.
-
-4. Remember the S3 bucket domain name for access logs.
-
-    ```
-    ACCESS_LOG_BUCKET=`aws --query "Stacks[0].Outputs[?OutputKey=='AccessLogBucketDomainName']|[0].OutputValue" cloudformation describe-stacks --stack-name imaginary-map-buckets | sed 's/^"//; s/"$//'`
+    CODE_REPOSITORY=`aws --query "Stacks[0].Outputs[?OutputKey=='CodeRepositoryName']|[0].OutputValue" cloudformation describe-stacks --stack-name imaginary-map-code-bucket | sed 's/^"//; s/"$//'`
     ```
 
    You have to specify an appropriate credential.
 
-You have to redo from the step 1 when you modify the template.
+### Creating an S3 bucket for GeoJSON files
+
+1. Deploy [`api/geo-json-bucket-template.yaml`](api/geo-json-bucket-template.yaml).
+
+    ```
+    aws cloudformation deploy --template-file api/geo-json-bucket-template.yaml --stack-name imaginary-map-geo-json-bucket
+    ```
+
+   You have to specify an appropriate credential.
+
+2. Remember the S3 bucket name for GeoJSON files.
+
+    ```
+    GEO_JSON_BUCKET=`aws --query "Stacks[0].Outputs[?OutputKey=='GeoJsonBucketName']|[0].OutputValue" cloudformation describe-stacks --stack-name imaginary-map-geo-json-bucket | sed 's/^"//; s/"$//'`
+    ```
+
+   You have to specify an appropriate credential.
 
 ### Uploading GeoJSON files
 
@@ -92,7 +95,7 @@ Suppose the following variable is defined,
 2. Package and deploy functions and API.
 
     ```
-    sam deploy --stack-name imaginary-map-api --capabilities CAPABILITY_IAM --s3-bucket $CODE_REPOSITORY --parameter-overrides GeoJsonBucketName=$GEO_JSON_BUCKET AccessLogBucketDomainName=$ACCESS_LOG_BUCKET
+    sam deploy --stack-name imaginary-map-api --capabilities CAPABILITY_IAM --s3-bucket $CODE_REPOSITORY --parameter-overrides GeoJsonBucketName=$GEO_JSON_BUCKET
     ```
 
    You have to specify an appropriate credential.
