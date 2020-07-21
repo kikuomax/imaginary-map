@@ -14,5 +14,5 @@ phases:
 
 artifacts:
   files:
-    - 'api/api-template-packaged.yaml'
+    - 'cdn/api/api-template-packaged.yaml'
   discard-path: 'no'
