@@ -1,0 +1,18 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      golang: '1.13'
+  build:
+    commands:
+      - 'cd cdn'
+      - 'echo `date` - building Lambda functions'
+      - 'sam build --template-file api/api-template.yaml --build-dir build'
+      - 'echo `date` - packaging API template'
+      - 'aws cloudformation package --template-file build/template.yaml --s3-bucket $CODE_REPOSITORY --output-template-file api/api-template-packaged.yaml'
+
+artifacts:
+  files:
+    - 'api/api-template-packaged.yaml'
+  discard-path: 'no'
