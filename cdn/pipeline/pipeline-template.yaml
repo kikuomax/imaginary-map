@@ -219,10 +219,13 @@ Resources:
         EnvironmentVariables:
           - Name: 'CODE_REPOSITORY'
             Value: !Ref TileApiCodePipelineArtifactsBucket
-      ServiceRole: !GetAtt TileApiCodeBuildProjectRole.Arn
       LogsConfig:
         CloudWatchLogs:
           Status: 'ENABLED'
+      Cache:
+        Type: 'S3'
+        Location: !Sub '${TileApiCodePipelineArtifactsBucket}/code-build-cache'
+      ServiceRole: !GetAtt TileApiCodeBuildProjectRole.Arn
       Tags:
         - Key: 'project'
           Value: !Ref ProjectTagValue
