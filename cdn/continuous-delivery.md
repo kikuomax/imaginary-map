@@ -17,7 +17,7 @@ Please refer to [README.md](README.md#uploading-geojson-files).
 
 Suppose you have the following variable configured,
 - `GITHUB_ACCESS_TOKEN`: your generated GitHub personal access token
-- `GITHUB_ACCESS_TOKEN_KEY`; e.g., 'GITHUB_ACCESS_TOKEN_KEY=imaginary-map-github-access-token'
+- `GITHUB_ACCESS_TOKEN_KEY`; e.g., 'GITHUB_ACCESS_TOKEN_KEY=/development/imaginary-map/github/access-token'
 
 1. Create a secret.
 
