@@ -52,7 +52,7 @@ You need the following software installed,
 
    You have to specify an appropriate credential.
 
-2. Remember the S3 bucket name for GeoJSON files.
+2. Remember the S3 bucket name for GeoJSON files as `GEO_JSON_BUCKET`.
 
     ```
     GEO_JSON_BUCKET=`aws --query "Stacks[0].Outputs[?OutputKey=='GeoJsonBucketName']|[0].OutputValue" cloudformation describe-stacks --stack-name imaginary-map-geo-json-bucket | sed 's/^"//; s/"$//'`
