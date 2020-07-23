@@ -37,6 +37,8 @@ Resources:
         Variables:
           GEO_JSON_BUCKET_NAME: !Ref GeoJsonBucketName
           ISLANDS_GEO_JSON_VERSION: !Ref IslandsGeoJsonVersion
+      # lets "development" points to the latest version
+      AutoPublishAlias: 'development'
       Tags:
         project: !Ref ProjectTagValue
     DependsOn:
@@ -77,6 +79,8 @@ Resources:
         Variables:
           GEO_JSON_BUCKET_NAME: !Ref GeoJsonBucketName
           PAPERS_GEO_JSON_VERSION: !Ref PapersGeoJsonVersion
+      # lets "development" points to the latest version
+      AutoPublishAlias: 'development'
       Tags:
         project: !Ref ProjectTagValue
     DependsOn:
@@ -127,23 +131,31 @@ Resources:
         - Key: 'project'
           Value: !Ref ProjectTagValue
 
-  # allows TileApi to call GetIslandsTileFunction
-  GetIslandsTileFunctionApiPermission:
+  # allows TileApi to call GetIslandsTileFunction@development
+  GetIslandsTileFunctionDevelopmentApiPermission:
     Type: 'AWS::Lambda::Permission'
     Properties:
-      FunctionName: !GetAtt GetIslandsTileFunction.Arn
+      FunctionName: !Sub '${GetIslandsTileFunction.Arn}:development'
       Action: 'lambda:InvokeFunction'
       Principal: 'apigateway.amazonaws.com'
       SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TileApi}/*/GET/*'
+    DependsOn:
+      # implicit resource name introduced by SAM
+      # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-specification-generated-resources-function.html#sam-specification-generated-resources-function-autopublishalias
+      - GetIslandsTileFunctionAliasdevelopment
 
-  # allows TileApi to call GetPapersTileFunction
-  GetPapersTileFunctionApiPermission:
+  # allows TileApi to call GetPapersTileFunction@development
+  GetPapersTileFunctionDevelopmentApiPermission:
     Type: 'AWS::Lambda::Permission'
     Properties:
-      FunctionName: !GetAtt GetPapersTileFunction.Arn
+      FunctionName: !Sub '${GetPapersTileFunction.Arn}:development'
       Action: 'lambda:InvokeFunction'
       Principal: 'apigateway.amazonaws.com'
       SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TileApi}/*/GET/*'
+    DependsOn:
+      # implicit resource name introduced by SAM
+      # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-specification-generated-resources-function.html#sam-specification-generated-resources-function-autopublishalias
+      - GetIslandsTileFunctionAliasdevelopment
 
   # /{zoom}
   TileApiZoomResource:
@@ -177,6 +189,8 @@ Resources:
       ParentId: !Ref TileApiZoomXYResource
       PathPart: 'islands.pbf'
   # GET /{zoom}/{x}/{y}/islands.pbf
+  # stage variable
+  # - GetIslandsTilesVersion: a version of the GetIslandsTile function
   GetTileApiZoomXYIslands:
     Type: 'AWS::ApiGateway::Method'
     Properties:
@@ -187,7 +201,11 @@ Resources:
       AuthorizationType: 'NONE'
       Integration:
         Type: 'AWS'
-        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetIslandsTileFunction.Arn}/invocations'
+        Uri: !Join
+          - ''
+          - - !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetIslandsTileFunction.Arn}'
+            # ${stageVariables.xyz} is not a template substitution
+            - ':${stageVariables.GetIslandsTileVersion}/invocations'
         IntegrationHttpMethod: 'POST'
         PassthroughBehavior: 'WHEN_NO_MATCH'
         RequestTemplates:
@@ -219,6 +237,8 @@ Resources:
       ParentId: !Ref TileApiZoomXYResource
       PathPart: 'papers.pbf'
   # GET /{zoom}/{x}/{y}/papers.pbf
+  # stage variable
+  # - GetPapersTileVersion: a version of the GetPapersTile function
   GetTileApiZoomXYPapers:
     Type: 'AWS::ApiGateway::Method'
     Properties:
@@ -229,7 +249,11 @@ Resources:
       AuthorizationType: 'NONE'
       Integration:
         Type: 'AWS'
-        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetPapersTileFunction.Arn}/invocations'
+        Uri: !Join
+          - ''
+          - - !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetPapersTileFunction.Arn}'
+            # ${stageVariables.xyz} is not a template substitution
+            - ':${stageVariables.GetPapersTileVersion}/invocations'
         IntegrationHttpMethod: 'POST'
         PassthroughBehavior: 'WHEN_NO_MATCH'
         RequestTemplates:
@@ -252,36 +276,6 @@ Resources:
             method.response.header.Access-Control-Allow-Origin: false
             method.response.header.Content-Type: false
             method.response.header.Content-Encoding: false
-
-  # initial deployment for the development stage.
-  TileApiInitialDevelopmentDeployment:
-    Type: 'AWS::ApiGateway::Deployment'
-    Properties:
-      Description: 'initial development deployment'
-      RestApiId: !Ref TileApi
-      StageName: 'development'
-      StageDescription:
-        LoggingLevel: 'INFO'
-        ThrottlingRateLimit: 100
-        ThrottlingBurstLimit: 500
-        Tags:
-          - Key: 'project'
-            Value: !Ref ProjectTagValue
-
-  # initial deployment for the production stage.
-  TileApiInitialProductionDeployment:
-    Type: 'AWS::ApiGateway::Deployment'
-    Properties:
-      Description: 'initial production deployment'
-      RestApiId: !Ref TileApi
-      StageName: 'production'
-      StageDescription:
-        LoggingLevel: 'INFO'
-        ThrottlingRateLimit: 100
-        ThrottlingBurstLimit: 500
-        Tags:
-          - Key: 'project'
-            Value: !Ref ProjectTagValue
 
   # CloudFront distribution
   TileApiDistribution:
