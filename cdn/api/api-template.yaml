@@ -253,6 +253,36 @@ Resources:
             method.response.header.Content-Type: false
             method.response.header.Content-Encoding: false
 
+  # initial deployment for the development stage.
+  TileApiInitialDevelopmentDeployment:
+    Type: 'AWS::ApiGateway::Deployment'
+    Properties:
+      Description: 'initial development deployment'
+      RestApiId: !Ref TileApi
+      StageName: 'development'
+      StageDescription:
+        LoggingLevel: 'INFO'
+        ThrottlingRateLimit: 100
+        ThrottlingBurstLimit: 500
+        Tags:
+          - Key: 'project'
+            Value: !Ref ProjectTagValue
+
+  # initial deployment for the production stage.
+  TileApiInitialProductionDeployment:
+    Type: 'AWS::ApiGateway::Deployment'
+    Properties:
+      Description: 'initial production deployment'
+      RestApiId: !Ref TileApi
+      StageName: 'production'
+      StageDescription:
+        LoggingLevel: 'INFO'
+        ThrottlingRateLimit: 100
+        ThrottlingBurstLimit: 500
+        Tags:
+          - Key: 'project'
+            Value: !Ref ProjectTagValue
+
   # CloudFront distribution
   TileApiDistribution:
     Type: 'AWS::CloudFront::Distribution'
