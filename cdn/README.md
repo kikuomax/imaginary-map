@@ -100,7 +100,7 @@ Suppose the following variable is defined,
 
    You have to specify an appropriate credential.
 
-You have to redo from the step 1 when you modify function code, from the step 2 when you modify the template.
+**NOTE**: when you modify the template, you have to start over from the step 1 even if you have not modified Lambda functions.
 
 ### Deploying API Gateway
 
