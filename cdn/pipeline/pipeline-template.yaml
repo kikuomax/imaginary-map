@@ -1,11 +1,12 @@
 AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
 Description: 'CodePipeline configuration for the map tile delivery service'
 
 Parameters:
-  ProjectStackNamePrefix:
-    Description: 'Prefix of stack names'
+  ProjectStackName:
+    Description: 'Stack name of the tile delivery API'
     Type: 'String'
-    Default: 'imaginary-map-'
+    Default: 'imaginary-map-api'
   GeoJsonBucketName:
     Description: 'Name of the S3 bucket for GeoJSON files'
     Type: 'String'
@@ -71,7 +72,7 @@ Resources:
               RunOrder: 1
         - Name: 'deploy'
           Actions:
-            - Name: 'tile-api-code-create-change-set'
+            - Name: 'tile-api-create-change-set'
               ActionTypeId:
                 Category: 'Deploy'
                 Owner: 'AWS'
@@ -79,8 +80,8 @@ Resources:
                 Version: '1'
               Configuration:
                 ActionMode: 'CHANGE_SET_REPLACE'
-                StackName: !Sub '${ProjectStackNamePrefix}api'
-                ChangeSetName: !Sub '${ProjectStackNamePrefix}api-change-set'
+                StackName: !Sub '${ProjectStackName}'
+                ChangeSetName: !Sub '${ProjectStackName}-change-set'
                 Capabilities: 'CAPABILITY_IAM'
                 TemplatePath: 'tile-api-template::cdn/api/api-template-packaged.yaml'
                 ParameterOverrides: !Sub '{ "GeoJsonBucketName": "${GeoJsonBucketName}" }'
@@ -88,7 +89,7 @@ Resources:
               InputArtifacts:
                 - Name: 'tile-api-template'
               RunOrder: 1
-            - Name: 'tile-api-code-execute-change-set'
+            - Name: 'tile-api-execute-change-set'
               ActionTypeId:
                 Category: 'Deploy'
                 Owner: 'AWS'
@@ -96,9 +97,27 @@ Resources:
                 Version: '1'
               Configuration:
                 ActionMode: 'CHANGE_SET_EXECUTE'
-                StackName: !Sub '${ProjectStackNamePrefix}api'
-                ChangeSetName: !Sub '${ProjectStackNamePrefix}api-change-set'
+                StackName: !Sub '${ProjectStackName}'
+                ChangeSetName: !Sub '${ProjectStackName}-change-set'
+                OutputFileName: 'tile-api-outputs.json'
+              OutputArtifacts:
+                - Name: 'tile-api-execute-change-set-artifacts'
               RunOrder: 2
+            - Name: 'tile-api-release'
+              ActionTypeId:
+                Category: 'Invoke'
+                Owner: 'AWS'
+                Provider: 'Lambda'
+                Version: 1
+              Configuration:
+                FunctionName: !Ref ReleaseFunction
+                UserParameters: |-
+                  {
+                    "releaseName": "production"
+                  }
+              InputArtifacts:
+                - Name: 'tile-api-execute-change-set-artifacts'
+              RunOrder: 3
       Tags:
         - Key: 'project'
           Value: !Ref ProjectTagValue
@@ -157,7 +176,7 @@ Resources:
                   - 'cloudformation:SetStackPolicy'
                   - 'cloudformation:ValidateTemplate'
                 Resource:
-                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ProjectStackNamePrefix}*/*'
+                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ProjectStackName}*/*'
                   - !Sub 'arn:aws:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31'
       Tags:
         - Key: 'project'
@@ -273,6 +292,60 @@ Resources:
               - Effect: 'Allow'
                 Action: 'ssm:GetParameters'
                 Resource: '*'
+
+  ReleaseFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Description: 'Lambda function that releases a specified Lambda function'
+      Runtime: 'python3.8'
+      CodeUri: './release-function'
+      Handler: 'lambda_handler.lambda_handler'
+      MemorySize: 128
+      Timeout: 900 # = 15 minutes
+      Role: !GetAtt ReleaseFunctionRole.Arn
+      Tags:
+        project: !Ref ProjectTagValue
+
+  ReleaseFunctionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Description: 'Role for the ReleaseFunction'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'tile-api-artifacts-access'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 's3:GetObject'
+                  - 's3:ListBucket'
+                  - 's3:PutObject'
+                Resource: !Sub '${TileApiCodePipelineArtifactsBucket.Arn}/*'
+        - PolicyName: 'tile-api-lambda-versioning'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'lambda:CreateAlias'
+                  - 'lambda:GetAlias'
+                  - 'lambda:ListAliases'
+                  - 'lambda:ListVersionsByFunction'
+                  - 'lambda:UpdateAlias'
+                Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectStackName}-*'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
 
   TileApiCodePipelineArtifactsBucket:
     Type: 'AWS::S3::Bucket'
