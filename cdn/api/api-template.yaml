@@ -327,9 +327,15 @@ Outputs:
   GetIslandsTileFunctionArn:
     Description: 'ARN of the GetIslandsTile function'
     Value: !GetAtt GetIslandsTileFunction.Arn
+  GetIslandsTileFunctionName:
+    Description: 'Name of the GetIslandsTile function'
+    Value: !Ref GetIslandsTileFunction
   GetPapersTileFunctionArn:
     Description: 'ARN of the GetPapersTile function'
     Value: !GetAtt GetPapersTileFunction.Arn
+  GetPapersTileFunctionName:
+    Description: 'Name of the GetPapersTile function'
+    Value: !Ref GetPapersTileFunction
   TileApiId:
     Description: 'ID of the TileApi'
     Value: !Ref TileApi
