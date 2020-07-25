@@ -366,12 +366,15 @@ Resources:
             Statement:
               - Effect: 'Allow'
                 Action:
+                  # GetJobDetails is necessary to call
+                  # PutJobFailureResult and PutJobSuccessResult
+                  - 'codepipeline:GetJobDetails'
                   - 'codepipeline:PutJobFailureResult'
                   - 'codepipeline:PutJobSuccessResult'
                 Resource:
-                  # cannot refer to TileApiCodePipeline
-                  # because it ends up with a circular reference
-                  - !Sub 'arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:imaginary-map-codepipeline-TileApiCodePipeline-*'
+                  # only a wildcard (*) is accepted.
+                  # https://docs.aws.amazon.com/codepipeline/latest/userguide/permissions-reference.html
+                  - '*'
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
       Tags:
