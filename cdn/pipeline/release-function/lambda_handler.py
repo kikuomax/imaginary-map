@@ -9,6 +9,20 @@ LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.DEBUG)
 
 
+def get_job_id(event):
+    """Results the job ID in a given event.
+
+    :type event: dict
+    :param event: event from CodePipeline.
+
+    :rtype: str
+    :return: job ID in ``event``.
+
+    :raises KeyError: if ``event`` does not have a necessary key.
+    """
+    return event['CodePipeline.job']['id']
+
+
 def get_data(event):
     """Returns the data object in a given event.
 
@@ -86,14 +100,53 @@ def parse_user_parameters(params_str):
     return params
 
 
+def put_failure_result(job_id, message, failure_type='JobFailed'):
+    """Tells the CodePipeline this job has failed.
+
+    :tparam job_id: str
+    :param job_id: job ID.
+
+    :tparam message: str
+    :param message: message about the failure.
+
+    :tparam failure_type: str
+    :param failure_type: type of the failure.
+    Must be one of values defined in https://docs.aws.amazon.com/codepipeline/latest/APIReference/API_FailureDetails.html
+    """
+    pipeline = boto3.client('codepipeline')
+    pipeline.put_job_failure_result(
+        jobId=job_id,
+        failureDetails={
+            'type': failure_type,
+            'message': message
+        })
+
+
 def lambda_handler(event, context):
     """Supposed to be called from CodePipeline.
     https://docs.aws.amazon.com/codepipeline/latest/userguide/action-reference-Lambda.html
     """
     LOGGER.debug(event)
-    data = get_data(event)
-    params_str = get_user_parameters_string(data)
-    params = parse_user_parameters(params_str)
-    LOGGER.debug(params)
-    input_artifacts = get_input_artifacts(data)
-    output_artifacts = get_output_artifacts(data)
+    try:
+        job_id = get_job_id(event)
+        LOGGER.info(f'job ID: {job_id}')
+        data = get_data(event)
+        params_str = get_user_parameters_string(data)
+        params = parse_user_parameters(params_str)
+        LOGGER.debug(params)
+        input_artifacts = get_input_artifacts(data)
+        output_artifacts = get_output_artifacts(data)
+        # TODO: put a success result
+        put_failure_result(
+            job_id,
+            message='not yet implemented')
+    except (IndexError, KeyError, TypeError, ValueError, json.JSONDecodeError) as err:
+        put_failure_result(
+            job_id,
+            message=str(err),
+            failure_type='ConfigurationError')
+    except BaseException as err:
+        # is it OK to catch all kinds of errors
+        put_failure_result(
+            job_id,
+            message=str(err))

@@ -103,7 +103,7 @@ Resources:
               OutputArtifacts:
                 - Name: 'tile-api-execute-change-set-artifacts'
               RunOrder: 2
-            - Name: 'tile-api-release'
+            - Name: 'tile-api-release-get-islands-tile'
               ActionTypeId:
                 Category: 'Invoke'
                 Owner: 'AWS'
@@ -113,7 +113,26 @@ Resources:
                 FunctionName: !Ref ReleaseFunction
                 UserParameters: |-
                   {
-                    "releaseName": "production"
+                    "releaseName": "production",
+                    "functionLogicalId": "GetIslandsTileFunction",
+                    "apiLogicalId": "TileApi"
+                  }
+              InputArtifacts:
+                - Name: 'tile-api-execute-change-set-artifacts'
+              RunOrder: 3
+            - Name: 'tile-api-release-get-papers-tile'
+              ActionTypeId:
+                Category: 'Invoke'
+                Owner: 'AWS'
+                Provider: 'Lambda'
+                Version: 1
+              Configuration:
+                FunctionName: !Ref ReleaseFunction
+                UserParameters: |-
+                  {
+                    "releaseName": "production",
+                    "functionLogicalId": "GetPapersTileFunction",
+                    "apiLogicalId": "TileApi"
                   }
               InputArtifacts:
                 - Name: 'tile-api-execute-change-set-artifacts'
@@ -341,6 +360,18 @@ Resources:
                   - 'lambda:ListVersionsByFunction'
                   - 'lambda:UpdateAlias'
                 Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectStackName}-*'
+        - PolicyName: 'tile-api-pipeline-put-result'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'codepipeline:PutJobFailureResult'
+                  - 'codepipeline:PutJobSuccessResult'
+                Resource:
+                  # cannot refer to TileApiCodePipeline
+                  # because it ends up with a circular reference
+                  - !Sub 'arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:imaginary-map-codepipeline-TileApiCodePipeline-*'
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
       Tags:
