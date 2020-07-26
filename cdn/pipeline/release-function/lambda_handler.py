@@ -370,7 +370,7 @@ def lambda_handler(event, context):
         logger.debug(output_artifacts)
         stack_outputs = load_stack_outputs(
             input_artifacts,
-            stack_output_name=params['stackOutputFileName'])
+            stack_output_name=params['stackOutputsFileName'])
         logger.debug(stack_outputs)
         function_name = get_function_name(
             stack_outputs,
