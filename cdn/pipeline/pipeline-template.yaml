@@ -113,9 +113,13 @@ Resources:
                 FunctionName: !Ref ReleaseFunction
                 UserParameters: |-
                   {
-                    "releaseName": "production",
+                    "srcAlias": "development",
+                    "destAlias": "production",
+                    "description": "release for production",
                     "functionLogicalId": "GetIslandsTileFunction",
-                    "apiLogicalId": "TileApi"
+                    "apiLogicalId": "TileApi",
+                    "permissionStatementId": "tile-api-invocation-permission",
+                    "stackOutputsFileName": "tile-api-outputs.json"
                   }
               InputArtifacts:
                 - Name: 'tile-api-execute-change-set-artifacts'
@@ -130,9 +134,13 @@ Resources:
                 FunctionName: !Ref ReleaseFunction
                 UserParameters: |-
                   {
-                    "releaseName": "production",
+                    "srcAlias": "development",
+                    "destAlias": "production",
+                    "description": "release for production",
                     "functionLogicalId": "GetPapersTileFunction",
-                    "apiLogicalId": "TileApi"
+                    "apiLogicalId": "TileApi",
+                    "permissionStatementId": "tile-api-invocation-premission",
+                    "stackOutputsFileName": "tile-api-outputs.json"
                   }
               InputArtifacts:
                 - Name: 'tile-api-execute-change-set-artifacts'
@@ -354,8 +362,10 @@ Resources:
             Statement:
               - Effect: 'Allow'
                 Action:
+                  - 'lambda:AddPermission'
                   - 'lambda:CreateAlias'
                   - 'lambda:GetAlias'
+                  - 'lambda:GetPolicy'
                   - 'lambda:ListAliases'
                   - 'lambda:ListVersionsByFunction'
                   - 'lambda:UpdateAlias'
