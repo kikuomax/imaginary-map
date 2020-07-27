@@ -14,10 +14,6 @@ Parameters:
     Description: 'Version of the GeoJSON file for papers'
     Type: 'String'
     Default: 'v1'
-  TileApiStage:
-    Description: 'Stage of the tile API to be deployed'
-    Type: 'String'
-    Default: 'develop'
   ProjectTagValue:
     Description: 'Value of a "project" tag'
     Type: 'String'
@@ -286,7 +282,7 @@ Resources:
         Origins:
           - Id: !Sub '${AWS::StackName}-tile-api'
             DomainName: !Sub '${TileApi}.execute-api.${AWS::Region}.amazonaws.com'
-            OriginPath: !Sub '/${TileApiStage}'
+            OriginPath: '/production'
             CustomOriginConfig:
               OriginProtocolPolicy: 'https-only'
               OriginSSLProtocols:
