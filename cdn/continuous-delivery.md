@@ -32,11 +32,22 @@ Suppose you have the following variable configured,
 Suppose you have the following variables configured,
 - `GITHUB_REPO_OWNER_NAME`; e.g., `GITHUB_REPO_OWNER_NAME=kikuomax`
 - `GITHUB_REPO_NAME`; e.g., `GITHUB_REPO_NAME=kikuomax/imaginary-map`
+- `RELEASE_APPROVER_EMAIL`; e.g., `xyz@xyz`
 
-1. Deploy [`pipeline/pipeline-template.yaml`](api/pipeline-template.yaml).
+1. Build [`pipeline/pipeline-template.yaml`](api/pipeline-template.yaml).
 
     ```
-    aws cloudformation deploy --template-file pipeline/pipeline-template.yaml --stack-name imaginary-map-codepipeline --capabilities CAPABILITY_IAM --parameter-overrides GeoJsonBucketName=$GEO_JSON_BUCKET GitHubRepoOwnerName=$GITHUB_REPO_OWNER_NAME GitHubRepoName=$GITHUB_REPO_NAME GitHubRepoAccessTokenKey=$GITHUB_ACCESS_TOKEN_KEY
+    sam build --template pipeline/pipeline-template.yaml --use-container
+    ```
+
+   **NOTE**: a modified template and built artifacts will be saved in a directory `.aws-sam/build`.
+
+2. Deploy a pipeline.
+
+    ```
+    sam deploy --stack-name imaginary-map-codepipeline --s3-bucket $CODE_REPOSITORY --capabilities CAPABILITY_IAM --parameter-overrides GeoJsonBucketName=$GEO_JSON_BUCKET GitHubRepoOwnerName=$GITHUB_REPO_OWNER_NAME GitHubRepoName=$GITHUB_REPO_NAME GitHubRepoAccessTokenKey=$GITHUB_ACCESS_TOKEN_KEY ReleaseApproverEmail=$RELEASE_APPROVER_EMAIL
     ```
 
    You have to provide an appropriate credential.
+
+**NOTE**: you have to start over from the step 1 even if you have just updated the template.

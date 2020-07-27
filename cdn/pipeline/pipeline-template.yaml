@@ -1,11 +1,12 @@
 AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
 Description: 'CodePipeline configuration for the map tile delivery service'
 
 Parameters:
-  ProjectStackNamePrefix:
-    Description: 'Prefix of stack names'
+  ProjectStackName:
+    Description: 'Stack name of the tile delivery API'
     Type: 'String'
-    Default: 'imaginary-map-'
+    Default: 'imaginary-map-api'
   GeoJsonBucketName:
     Description: 'Name of the S3 bucket for GeoJSON files'
     Type: 'String'
@@ -21,6 +22,9 @@ Parameters:
     Default: 'master'
   GitHubRepoAccessTokenKey:
     Description: 'Name of the key associated with an access token for the GitHub repository, which is managed by AWS Secrets Manager'
+    Type: 'String'
+  ReleaseApproverEmail:
+    Description: 'Email address of an approver of a release of an API'
     Type: 'String'
   ProjectTagValue:
     Description: 'Value of the "project" tag'
@@ -71,7 +75,7 @@ Resources:
               RunOrder: 1
         - Name: 'deploy'
           Actions:
-            - Name: 'tile-api-code-create-change-set'
+            - Name: 'tile-api-create-change-set'
               ActionTypeId:
                 Category: 'Deploy'
                 Owner: 'AWS'
@@ -79,8 +83,8 @@ Resources:
                 Version: '1'
               Configuration:
                 ActionMode: 'CHANGE_SET_REPLACE'
-                StackName: !Sub '${ProjectStackNamePrefix}api'
-                ChangeSetName: !Sub '${ProjectStackNamePrefix}api-change-set'
+                StackName: !Sub '${ProjectStackName}'
+                ChangeSetName: !Sub '${ProjectStackName}-change-set'
                 Capabilities: 'CAPABILITY_IAM'
                 TemplatePath: 'tile-api-template::cdn/api/api-template-packaged.yaml'
                 ParameterOverrides: !Sub '{ "GeoJsonBucketName": "${GeoJsonBucketName}" }'
@@ -88,7 +92,7 @@ Resources:
               InputArtifacts:
                 - Name: 'tile-api-template'
               RunOrder: 1
-            - Name: 'tile-api-code-execute-change-set'
+            - Name: 'tile-api-execute-change-set'
               ActionTypeId:
                 Category: 'Deploy'
                 Owner: 'AWS'
@@ -96,9 +100,136 @@ Resources:
                 Version: '1'
               Configuration:
                 ActionMode: 'CHANGE_SET_EXECUTE'
-                StackName: !Sub '${ProjectStackNamePrefix}api'
-                ChangeSetName: !Sub '${ProjectStackNamePrefix}api-change-set'
+                StackName: !Sub '${ProjectStackName}'
+                ChangeSetName: !Sub '${ProjectStackName}-change-set'
+                OutputFileName: 'tile-api-outputs.json'
+              OutputArtifacts:
+                - Name: 'tile-api-execute-change-set-artifacts'
               RunOrder: 2
+            - Name: 'tile-api-release-development-stage'
+              ActionTypeId:
+                Category: 'Invoke'
+                Owner: 'AWS'
+                Provider: 'Lambda'
+                Version: 1
+              Configuration:
+                FunctionName: !Ref ReleaseApi
+                UserParameters: !Sub |-
+                  {
+                    "stageName": "development",
+                    "apiLogicalId": "TileApi",
+                    "stageConfiguration": {
+                      "description": "stage for development",
+                      "methodSettings": [
+                        {
+                          "resourcePath": "/*",
+                          "httpMethod": "*",
+                          "loggingLevel": "INFO",
+                          "throttlingRateLimit": 100,
+                          "throttlingBurstLimit": 500
+                        }
+                      ],
+                      "variables": {
+                        "GetIslandsTileVersion": "development",
+                        "GetPapersTileVersion": "development"
+                      },
+                      "tags": {
+                        "project": "${ProjectTagValue}"
+                      }
+                    },
+                    "stackOutputsFileName": "tile-api-outputs.json"
+                  }
+              InputArtifacts:
+                - Name: 'tile-api-execute-change-set-artifacts'
+              RunOrder: 3
+            - Name: 'tile-api-release-approval'
+              ActionTypeId:
+                Category: 'Approval'
+                Owner: 'AWS'
+                Provider: 'Manual'
+                Version: '1'
+              Configuration:
+                NotificationArn: !Ref TileApiCodePipelineApprovalTopic
+                CustomData: 'Test a development stage of a tile delivery service before approval'
+              RunOrder: 4
+            - Name: 'tile-api-release-get-islands-tile'
+              ActionTypeId:
+                Category: 'Invoke'
+                Owner: 'AWS'
+                Provider: 'Lambda'
+                Version: 1
+              Configuration:
+                FunctionName: !Ref ReleaseFunction
+                UserParameters: |-
+                  {
+                    "srcAlias": "development",
+                    "destAlias": "production",
+                    "description": "release for production",
+                    "functionLogicalId": "GetIslandsTileFunction",
+                    "apiLogicalId": "TileApi",
+                    "permissionStatementId": "tile-api-invocation-permission",
+                    "stackOutputsFileName": "tile-api-outputs.json"
+                  }
+              InputArtifacts:
+                - Name: 'tile-api-execute-change-set-artifacts'
+              RunOrder: 5
+            - Name: 'tile-api-release-get-papers-tile'
+              ActionTypeId:
+                Category: 'Invoke'
+                Owner: 'AWS'
+                Provider: 'Lambda'
+                Version: 1
+              Configuration:
+                FunctionName: !Ref ReleaseFunction
+                UserParameters: |-
+                  {
+                    "srcAlias": "development",
+                    "destAlias": "production",
+                    "description": "release for production",
+                    "functionLogicalId": "GetPapersTileFunction",
+                    "apiLogicalId": "TileApi",
+                    "permissionStatementId": "tile-api-invocation-premission",
+                    "stackOutputsFileName": "tile-api-outputs.json"
+                  }
+              InputArtifacts:
+                - Name: 'tile-api-execute-change-set-artifacts'
+              RunOrder: 5
+            - Name: 'tile-api-release-production-stage'
+              ActionTypeId:
+                Category: 'Invoke'
+                Owner: 'AWS'
+                Provider: 'Lambda'
+                Version: 1
+              Configuration:
+                FunctionName: !Ref ReleaseApi
+                UserParameters: !Sub |-
+                  {
+                    "stageName": "production",
+                    "apiLogicalId": "TileApi",
+                    "stageConfiguration": {
+                      "description": "stage for production",
+                      "methodSettings": [
+                        {
+                          "resourcePath": "/*",
+                          "httpMethod": "*",
+                          "loggingLevel": "INFO",
+                          "throttlingRateLimit": 100,
+                          "throttlingBurstLimit": 500
+                        }
+                      ],
+                      "variables": {
+                        "GetIslandsTileVersion": "production",
+                        "GetPapersTileVersion": "production"
+                      },
+                      "tags": {
+                        "project": "${ProjectTagValue}"
+                      }
+                    },
+                    "stackOutputsFileName": "tile-api-outputs.json"
+                  }
+              InputArtifacts:
+                - Name: 'tile-api-execute-change-set-artifacts'
+              RunOrder: 6
       Tags:
         - Key: 'project'
           Value: !Ref ProjectTagValue
@@ -157,8 +288,17 @@ Resources:
                   - 'cloudformation:SetStackPolicy'
                   - 'cloudformation:ValidateTemplate'
                 Resource:
-                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ProjectStackNamePrefix}*/*'
+                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ProjectStackName}*/*'
                   - !Sub 'arn:aws:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31'
+        - PolicyName: 'code-pipeline-approval-notification'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'sns:Publish'
+                Resource:
+                  - !Ref TileApiCodePipelineApprovalTopic
       Tags:
         - Key: 'project'
           Value: !Ref ProjectTagValue
@@ -274,6 +414,147 @@ Resources:
                 Action: 'ssm:GetParameters'
                 Resource: '*'
 
+  ReleaseFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Description: 'Lambda function that releases a specified Lambda function'
+      Runtime: 'python3.8'
+      CodeUri: 'release-function/.'
+      Handler: 'lambda_handler.lambda_handler'
+      MemorySize: 128
+      Timeout: 900 # = 15 minutes
+      Role: !GetAtt ReleaseFunctionRole.Arn
+      Tags:
+        project: !Ref ProjectTagValue
+
+  ReleaseFunctionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Description: 'Role for the ReleaseFunction'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service:
+                - 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'tile-api-artifacts-access'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 's3:GetObject'
+                  - 's3:ListBucket'
+                Resource: !Sub '${TileApiCodePipelineArtifactsBucket.Arn}/*'
+        - PolicyName: 'tile-api-lambda-versioning'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'lambda:AddPermission'
+                  - 'lambda:CreateAlias'
+                  - 'lambda:GetAlias'
+                  - 'lambda:GetPolicy'
+                  - 'lambda:ListAliases'
+                  - 'lambda:ListVersionsByFunction'
+                  - 'lambda:UpdateAlias'
+                Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectStackName}-*'
+        - PolicyName: 'tile-api-pipeline-put-result'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  # GetJobDetails is necessary to call
+                  # PutJobFailureResult and PutJobSuccessResult
+                  - 'codepipeline:GetJobDetails'
+                  - 'codepipeline:PutJobFailureResult'
+                  - 'codepipeline:PutJobSuccessResult'
+                Resource:
+                  # only a wildcard (*) is accepted.
+                  # https://docs.aws.amazon.com/codepipeline/latest/userguide/permissions-reference.html
+                  - '*'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
+  ReleaseApi:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Description: 'Lambda function that releases a specified API'
+      Runtime: 'python3.8'
+      CodeUri: 'release-api/.'
+      Handler: 'lambda_handler.lambda_handler'
+      MemorySize: 128
+      Timeout: 900 # 15 minutes
+      Role: !GetAtt ReleaseApiRole.Arn
+      Tags:
+        project: !Ref ProjectTagValue
+
+  ReleaseApiRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Description: 'Role for the ReleaseApi'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service:
+                - 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'tile-api-artifacts-access'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 's3:GetObject'
+                  - 's3:ListBucket'
+                Resource: !Sub '${TileApiCodePipelineArtifactsBucket.Arn}/*'
+        - PolicyName: 'tile-api-gateway-staging'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'apigateway:*'
+                Resource: !Sub 'arn:aws:apigateway:${AWS::Region}:*'
+        - PolicyName: 'tile-api-pipeline-put-result'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'codepipeline:GetJobDetails'
+                  - 'codepipeline:PutJobFailureResult'
+                  - 'codepipeline:PutJobSuccessResult'
+                Resource:
+                  - '*'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
+  TileApiCodePipelineApprovalTopic:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      DisplayName: 'SNS topic to approve a release of a map vector tile delivery API'
+      Subscription:
+        - Protocol: 'email'
+          Endpoint: !Ref ReleaseApproverEmail
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
   TileApiCodePipelineArtifactsBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
@@ -289,8 +570,12 @@ Resources:
       Tags:
         - Key: 'project'
           Value: !Ref ProjectTagValue
+    DeletionPolicy: 'Retain'
 
 Outputs:
+  TileApiCodePipelineApprovalTopicArn:
+    Description: 'ARN of a topic to approve a release of an API'
+    Value: !Ref TileApiCodePipelineApprovalTopic
   TileApiCodePipelineArtifactsBucketName:
     Description: 'Name of the S3 bucket for CodePipeline artifacts'
     Value: !Ref TileApiCodePipelineArtifactsBucket

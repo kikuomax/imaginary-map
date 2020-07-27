@@ -14,10 +14,6 @@ Parameters:
     Description: 'Version of the GeoJSON file for papers'
     Type: 'String'
     Default: 'v1'
-  TileApiStage:
-    Description: 'Stage of the tile API to be deployed'
-    Type: 'String'
-    Default: 'develop'
   ProjectTagValue:
     Description: 'Value of a "project" tag'
     Type: 'String'
@@ -37,6 +33,8 @@ Resources:
         Variables:
           GEO_JSON_BUCKET_NAME: !Ref GeoJsonBucketName
           ISLANDS_GEO_JSON_VERSION: !Ref IslandsGeoJsonVersion
+      # lets "development" points to the latest version
+      AutoPublishAlias: 'development'
       Tags:
         project: !Ref ProjectTagValue
     DependsOn:
@@ -77,6 +75,8 @@ Resources:
         Variables:
           GEO_JSON_BUCKET_NAME: !Ref GeoJsonBucketName
           PAPERS_GEO_JSON_VERSION: !Ref PapersGeoJsonVersion
+      # lets "development" points to the latest version
+      AutoPublishAlias: 'development'
       Tags:
         project: !Ref ProjectTagValue
     DependsOn:
@@ -127,23 +127,31 @@ Resources:
         - Key: 'project'
           Value: !Ref ProjectTagValue
 
-  # allows TileApi to call GetIslandsTileFunction
-  GetIslandsTileFunctionApiPermission:
+  # allows TileApi to call GetIslandsTileFunction@development
+  GetIslandsTileFunctionDevelopmentApiPermission:
     Type: 'AWS::Lambda::Permission'
     Properties:
-      FunctionName: !GetAtt GetIslandsTileFunction.Arn
+      FunctionName: !Sub '${GetIslandsTileFunction.Arn}:development'
       Action: 'lambda:InvokeFunction'
       Principal: 'apigateway.amazonaws.com'
       SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TileApi}/*/GET/*'
+    DependsOn:
+      # implicit resource name introduced by SAM
+      # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-specification-generated-resources-function.html#sam-specification-generated-resources-function-autopublishalias
+      - GetIslandsTileFunctionAliasdevelopment
 
-  # allows TileApi to call GetPapersTileFunction
-  GetPapersTileFunctionApiPermission:
+  # allows TileApi to call GetPapersTileFunction@development
+  GetPapersTileFunctionDevelopmentApiPermission:
     Type: 'AWS::Lambda::Permission'
     Properties:
-      FunctionName: !GetAtt GetPapersTileFunction.Arn
+      FunctionName: !Sub '${GetPapersTileFunction.Arn}:development'
       Action: 'lambda:InvokeFunction'
       Principal: 'apigateway.amazonaws.com'
       SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TileApi}/*/GET/*'
+    DependsOn:
+      # implicit resource name introduced by SAM
+      # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-specification-generated-resources-function.html#sam-specification-generated-resources-function-autopublishalias
+      - GetIslandsTileFunctionAliasdevelopment
 
   # /{zoom}
   TileApiZoomResource:
@@ -177,6 +185,8 @@ Resources:
       ParentId: !Ref TileApiZoomXYResource
       PathPart: 'islands.pbf'
   # GET /{zoom}/{x}/{y}/islands.pbf
+  # stage variable
+  # - GetIslandsTilesVersion: a version of the GetIslandsTile function
   GetTileApiZoomXYIslands:
     Type: 'AWS::ApiGateway::Method'
     Properties:
@@ -187,7 +197,11 @@ Resources:
       AuthorizationType: 'NONE'
       Integration:
         Type: 'AWS'
-        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetIslandsTileFunction.Arn}/invocations'
+        Uri: !Join
+          - ''
+          - - !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetIslandsTileFunction.Arn}'
+            # ${stageVariables.xyz} is not a template substitution
+            - ':${stageVariables.GetIslandsTileVersion}/invocations'
         IntegrationHttpMethod: 'POST'
         PassthroughBehavior: 'WHEN_NO_MATCH'
         RequestTemplates:
@@ -219,6 +233,8 @@ Resources:
       ParentId: !Ref TileApiZoomXYResource
       PathPart: 'papers.pbf'
   # GET /{zoom}/{x}/{y}/papers.pbf
+  # stage variable
+  # - GetPapersTileVersion: a version of the GetPapersTile function
   GetTileApiZoomXYPapers:
     Type: 'AWS::ApiGateway::Method'
     Properties:
@@ -229,7 +245,11 @@ Resources:
       AuthorizationType: 'NONE'
       Integration:
         Type: 'AWS'
-        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetPapersTileFunction.Arn}/invocations'
+        Uri: !Join
+          - ''
+          - - !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetPapersTileFunction.Arn}'
+            # ${stageVariables.xyz} is not a template substitution
+            - ':${stageVariables.GetPapersTileVersion}/invocations'
         IntegrationHttpMethod: 'POST'
         PassthroughBehavior: 'WHEN_NO_MATCH'
         RequestTemplates:
@@ -262,7 +282,7 @@ Resources:
         Origins:
           - Id: !Sub '${AWS::StackName}-tile-api'
             DomainName: !Sub '${TileApi}.execute-api.${AWS::Region}.amazonaws.com'
-            OriginPath: !Sub '/${TileApiStage}'
+            OriginPath: '/production'
             CustomOriginConfig:
               OriginProtocolPolicy: 'https-only'
               OriginSSLProtocols:
@@ -303,12 +323,21 @@ Outputs:
   GetIslandsTileFunctionArn:
     Description: 'ARN of the GetIslandsTile function'
     Value: !GetAtt GetIslandsTileFunction.Arn
+  GetIslandsTileFunctionName:
+    Description: 'Name of the GetIslandsTile function'
+    Value: !Ref GetIslandsTileFunction
   GetPapersTileFunctionArn:
     Description: 'ARN of the GetPapersTile function'
     Value: !GetAtt GetPapersTileFunction.Arn
+  GetPapersTileFunctionName:
+    Description: 'Name of the GetPapersTile function'
+    Value: !Ref GetPapersTileFunction
   TileApiId:
     Description: 'ID of the TileApi'
     Value: !Ref TileApi
+  TileApiDevelopmentStageUrl:
+    Description: 'URL of the development stage of the TileApi'
+    Value: !Sub 'https://${TileApi}.execute-api.${AWS::Region}.amazonaws.com/development'
   TileApiDistributionDomainName:
     Description: 'Domain name of the map vector tile CDN'
     Value: !GetAtt TileApiDistribution.DomainName
