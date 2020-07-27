@@ -23,6 +23,9 @@ Parameters:
   GitHubRepoAccessTokenKey:
     Description: 'Name of the key associated with an access token for the GitHub repository, which is managed by AWS Secrets Manager'
     Type: 'String'
+  ReleaseApproverEmail:
+    Description: 'Email address of an approver of a release of an API'
+    Type: 'String'
   ProjectTagValue:
     Description: 'Value of the "project" tag'
     Type: 'String'
@@ -139,7 +142,16 @@ Resources:
               InputArtifacts:
                 - Name: 'tile-api-execute-change-set-artifacts'
               RunOrder: 3
-            # TODO: insert an approval action
+            - Name: 'tile-api-release-approval'
+              ActionTypeId:
+                Category: 'Approval'
+                Owner: 'AWS'
+                Provider: 'Manual'
+                Version: '1'
+              Configuration:
+                NotificationArn: !Ref TileApiCodePipelineApprovalTopic
+                CustomData: 'Test a development stage of a tile delivery service before approval'
+              RunOrder: 4
             - Name: 'tile-api-release-get-islands-tile'
               ActionTypeId:
                 Category: 'Invoke'
@@ -160,7 +172,7 @@ Resources:
                   }
               InputArtifacts:
                 - Name: 'tile-api-execute-change-set-artifacts'
-              RunOrder: 4
+              RunOrder: 5
             - Name: 'tile-api-release-get-papers-tile'
               ActionTypeId:
                 Category: 'Invoke'
@@ -181,7 +193,7 @@ Resources:
                   }
               InputArtifacts:
                 - Name: 'tile-api-execute-change-set-artifacts'
-              RunOrder: 4
+              RunOrder: 5
             - Name: 'tile-api-release-production-stage'
               ActionTypeId:
                 Category: 'Invoke'
@@ -217,7 +229,7 @@ Resources:
                   }
               InputArtifacts:
                 - Name: 'tile-api-execute-change-set-artifacts'
-              RunOrder: 5
+              RunOrder: 6
       Tags:
         - Key: 'project'
           Value: !Ref ProjectTagValue
@@ -278,6 +290,15 @@ Resources:
                 Resource:
                   - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ProjectStackName}*/*'
                   - !Sub 'arn:aws:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31'
+        - PolicyName: 'code-pipeline-approval-notification'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'sns:Publish'
+                Resource:
+                  - !Ref TileApiCodePipelineApprovalTopic
       Tags:
         - Key: 'project'
           Value: !Ref ProjectTagValue
@@ -523,6 +544,17 @@ Resources:
         - Key: 'project'
           Value: !Ref ProjectTagValue
 
+  TileApiCodePipelineApprovalTopic:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      DisplayName: 'SNS topic to approve a release of a map vector tile delivery API'
+      Subscription:
+        - Protocol: 'email'
+          Endpoint: !Ref ReleaseApproverEmail
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
   TileApiCodePipelineArtifactsBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
@@ -541,6 +573,9 @@ Resources:
     DeletionPolicy: 'Retain'
 
 Outputs:
+  TileApiCodePipelineApprovalTopicArn:
+    Description: 'ARN of a topic to approve a release of an API'
+    Value: !Ref TileApiCodePipelineApprovalTopic
   TileApiCodePipelineArtifactsBucketName:
     Description: 'Name of the S3 bucket for CodePipeline artifacts'
     Value: !Ref TileApiCodePipelineArtifactsBucket
