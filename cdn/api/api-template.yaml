@@ -335,6 +335,9 @@ Outputs:
   TileApiId:
     Description: 'ID of the TileApi'
     Value: !Ref TileApi
+  TileApiDevelopmentStageUrl:
+    Description: 'URL of the development stage of the TileApi'
+    Value: !Sub 'https://${TileApi}.execute-api.${AWS::Region}.amazonaws.com/development'
   TileApiDistributionDomainName:
     Description: 'Domain name of the map vector tile CDN'
     Value: !GetAtt TileApiDistribution.DomainName
