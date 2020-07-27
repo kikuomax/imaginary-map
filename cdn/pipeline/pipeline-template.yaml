@@ -103,6 +103,43 @@ Resources:
               OutputArtifacts:
                 - Name: 'tile-api-execute-change-set-artifacts'
               RunOrder: 2
+            - Name: 'tile-api-release-development-stage'
+              ActionTypeId:
+                Category: 'Invoke'
+                Owner: 'AWS'
+                Provider: 'Lambda'
+                Version: 1
+              Configuration:
+                FunctionName: !Ref ReleaseApi
+                UserParameters: !Sub |-
+                  {
+                    "stageName": "development",
+                    "apiLogicalId": "TileApi",
+                    "stageConfiguration": {
+                      "description": "stage for development",
+                      "methodSettings": [
+                        {
+                          "resourcePath": "/*",
+                          "httpMethod": "*",
+                          "loggingLevel": "INFO",
+                          "throttlingRateLimit": 100,
+                          "throttlingBurstLimit": 500
+                        }
+                      ],
+                      "variables": {
+                        "GetIslandsTileVersion": "development",
+                        "GetPapersTileVersion": "development"
+                      },
+                      "tags": {
+                        "project": "${ProjectTagValue}"
+                      }
+                    },
+                    "stackOutputsFileName": "tile-api-outputs.json"
+                  }
+              InputArtifacts:
+                - Name: 'tile-api-execute-change-set-artifacts'
+              RunOrder: 3
+            # TODO: insert an approval action
             - Name: 'tile-api-release-get-islands-tile'
               ActionTypeId:
                 Category: 'Invoke'
@@ -123,7 +160,7 @@ Resources:
                   }
               InputArtifacts:
                 - Name: 'tile-api-execute-change-set-artifacts'
-              RunOrder: 3
+              RunOrder: 4
             - Name: 'tile-api-release-get-papers-tile'
               ActionTypeId:
                 Category: 'Invoke'
@@ -144,7 +181,43 @@ Resources:
                   }
               InputArtifacts:
                 - Name: 'tile-api-execute-change-set-artifacts'
-              RunOrder: 3
+              RunOrder: 4
+            - Name: 'tile-api-release-production-stage'
+              ActionTypeId:
+                Category: 'Invoke'
+                Owner: 'AWS'
+                Provider: 'Lambda'
+                Version: 1
+              Configuration:
+                FunctionName: !Ref ReleaseApi
+                UserParameters: !Sub |-
+                  {
+                    "stageName": "production",
+                    "apiLogicalId": "TileApi",
+                    "stageConfiguration": {
+                      "description": "stage for production",
+                      "methodSettings": [
+                        {
+                          "resourcePath": "/*",
+                          "httpMethod": "*",
+                          "loggingLevel": "INFO",
+                          "throttlingRateLimit": 100,
+                          "throttlingBurstLimit": 500
+                        }
+                      ],
+                      "variables": {
+                        "GetIslandsTileVersion": "production",
+                        "GetPapersTileVersion": "production"
+                      },
+                      "tags": {
+                        "project": "${ProjectTagValue}"
+                      }
+                    },
+                    "stackOutputsFileName": "tile-api-outputs.json"
+                  }
+              InputArtifacts:
+                - Name: 'tile-api-execute-change-set-artifacts'
+              RunOrder: 5
       Tags:
         - Key: 'project'
           Value: !Ref ProjectTagValue
@@ -325,7 +398,7 @@ Resources:
     Properties:
       Description: 'Lambda function that releases a specified Lambda function'
       Runtime: 'python3.8'
-      CodeUri: './release-function'
+      CodeUri: 'release-function/.'
       Handler: 'lambda_handler.lambda_handler'
       MemorySize: 128
       Timeout: 900 # = 15 minutes
@@ -343,7 +416,7 @@ Resources:
           - Effect: 'Allow'
             Principal:
               Service:
-                - lambda.amazonaws.com
+                - 'lambda.amazonaws.com'
             Action: 'sts:AssumeRole'
       Policies:
         - PolicyName: 'tile-api-artifacts-access'
@@ -354,7 +427,6 @@ Resources:
                 Action:
                   - 's3:GetObject'
                   - 's3:ListBucket'
-                  - 's3:PutObject'
                 Resource: !Sub '${TileApiCodePipelineArtifactsBucket.Arn}/*'
         - PolicyName: 'tile-api-lambda-versioning'
           PolicyDocument:
@@ -391,6 +463,66 @@ Resources:
         - Key: 'project'
           Value: !Ref ProjectTagValue
 
+  ReleaseApi:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Description: 'Lambda function that releases a specified API'
+      Runtime: 'python3.8'
+      CodeUri: 'release-api/.'
+      Handler: 'lambda_handler.lambda_handler'
+      MemorySize: 128
+      Timeout: 900 # 15 minutes
+      Role: !GetAtt ReleaseApiRole.Arn
+      Tags:
+        project: !Ref ProjectTagValue
+
+  ReleaseApiRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Description: 'Role for the ReleaseApi'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service:
+                - 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'tile-api-artifacts-access'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 's3:GetObject'
+                  - 's3:ListBucket'
+                Resource: !Sub '${TileApiCodePipelineArtifactsBucket.Arn}/*'
+        - PolicyName: 'tile-api-gateway-staging'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'apigateway:*'
+                Resource: !Sub 'arn:aws:apigateway:${AWS::Region}:*'
+        - PolicyName: 'tile-api-pipeline-put-result'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'codepipeline:GetJobDetails'
+                  - 'codepipeline:PutJobFailureResult'
+                  - 'codepipeline:PutJobSuccessResult'
+                Resource:
+                  - '*'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Tags:
+        - Key: 'project'
+          Value: !Ref ProjectTagValue
+
   TileApiCodePipelineArtifactsBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
@@ -406,6 +538,7 @@ Resources:
       Tags:
         - Key: 'project'
           Value: !Ref ProjectTagValue
+    DeletionPolicy: 'Retain'
 
 Outputs:
   TileApiCodePipelineArtifactsBucketName:
