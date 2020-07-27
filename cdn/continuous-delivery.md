@@ -32,6 +32,7 @@ Suppose you have the following variable configured,
 Suppose you have the following variables configured,
 - `GITHUB_REPO_OWNER_NAME`; e.g., `GITHUB_REPO_OWNER_NAME=kikuomax`
 - `GITHUB_REPO_NAME`; e.g., `GITHUB_REPO_NAME=kikuomax/imaginary-map`
+- `RELEASE_APPROVER_EMAIL`; e.g., `xyz@xyz`
 
 1. Build [`pipeline/pipeline-template.yaml`](api/pipeline-template.yaml).
 
@@ -44,7 +45,7 @@ Suppose you have the following variables configured,
 2. Deploy a pipeline.
 
     ```
-    sam deploy --stack-name imaginary-map-codepipeline --s3-bucket $CODE_REPOSITORY --capabilities CAPABILITY_IAM --parameter-overrides GeoJsonBucketName=$GEO_JSON_BUCKET GitHubRepoOwnerName=$GITHUB_REPO_OWNER_NAME GitHubRepoName=$GITHUB_REPO_NAME GitHubRepoAccessTokenKey=$GITHUB_ACCESS_TOKEN_KEY
+    sam deploy --stack-name imaginary-map-codepipeline --s3-bucket $CODE_REPOSITORY --capabilities CAPABILITY_IAM --parameter-overrides GeoJsonBucketName=$GEO_JSON_BUCKET GitHubRepoOwnerName=$GITHUB_REPO_OWNER_NAME GitHubRepoName=$GITHUB_REPO_NAME GitHubRepoAccessTokenKey=$GITHUB_ACCESS_TOKEN_KEY ReleaseApproverEmail=$RELEASE_APPROVER_EMAIL
     ```
 
    You have to provide an appropriate credential.
