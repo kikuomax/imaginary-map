@@ -9,11 +9,11 @@ Parameters:
   IslandsGeoJsonVersion:
     Description: 'Version of the GeoJSON file for islands'
     Type: 'String'
-    Default: 'v1'
+    Default: 'v2'
   PapersGeoJsonVersion:
     Description: 'Version of the GeoJSON file for papers'
     Type: 'String'
-    Default: 'v1'
+    Default: 'v2'
   ProjectTagValue:
     Description: 'Value of a "project" tag'
     Type: 'String'
@@ -64,7 +64,7 @@ Resources:
       Runtime: 'go1.x'
       CodeUri: 'get-papers-tile/.'
       Handler: 'main'
-      # you may think increasing MemorySize will charge more.
+      # you may think increasing MemorySize will charge you more.
       # but it actually does not matter
       # because the processing gets faster with lager memory.
       # it took 6000ms with 128MB and 1700ms with 512MB.
