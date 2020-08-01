@@ -8,7 +8,6 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/kikuomax/imaginary-map/cdn/common"
 	"github.com/paulmach/orb/encoding/mvt"
-	"github.com/paulmach/orb/geojson"
 	"github.com/paulmach/orb/simplify"
 )
 
@@ -22,8 +21,8 @@ const GEO_JSON_FILE_NAME = "islands.json"
 // MVT layer name.
 const LAYER_NAME = "islands"
 
-// Loads the GeoJSON for islands.
-func LoadGeoJson () (*geojson.FeatureCollection, error) {
+// Loads a multilayer GeoJSON file for islands.
+func LoadLayersJson () (*common.NamedFeatureCollections, error) {
 	bucket, err := common.GetEnv(GEO_JSON_BUCKET_NAME)
 	if err != nil {
 		return nil, err
@@ -33,23 +32,27 @@ func LoadGeoJson () (*geojson.FeatureCollection, error) {
 		return nil, err
 	}
 	key := fmt.Sprintf("/%s/%s", version, GEO_JSON_FILE_NAME)
-	log.Println("loading GeoJSON", bucket, key)
-	return common.LoadGeoJsonFromS3(bucket, key)
+	log.Println("loading a multilayer GeoJSON file", bucket, key)
+	bytes, err := common.LoadS3Object(bucket, key)
+	if err != nil {
+		return nil, err
+	}
+	return common.LoadLayersJson(bytes)
 }
 
 // Generates a map vector tile at a given coordinate.
-func GenerateMapVectorTile (fc *geojson.FeatureCollection, event common.GetTileEvent) ([]byte, error) {
-	layer := mvt.NewLayer(LAYER_NAME, fc)
+func GenerateMapVectorTile (fcs *common.NamedFeatureCollections, event common.GetTileEvent) ([]byte, error) {
+	layers := mvt.NewLayers(*fcs)
 	tile, ok := event.ToTile()
 	if !ok {
 		return nil, errors.New(
 			fmt.Sprintf("invalid tile coordinate: %v", event))
 	}
-	layer.ProjectToTile(tile)
-	layer.Clip(mvt.MapboxGLDefaultExtentBound)
-	layer.Simplify(simplify.DouglasPeucker(1.0))
-	layer.RemoveEmpty(1.0, 1.0)
-	return mvt.MarshalGzipped(mvt.Layers{ layer })
+	layers.ProjectToTile(tile)
+	layers.Clip(mvt.MapboxGLDefaultExtentBound)
+	layers.Simplify(simplify.DouglasPeucker(1.0))
+	layers.RemoveEmpty(1.0, 1.0)
+	return mvt.MarshalGzipped(layers)
 }
 
 func HandleRequest (ctx context.Context, event common.GetTileEvent) ([]byte, error) {
@@ -58,11 +61,11 @@ func HandleRequest (ctx context.Context, event common.GetTileEvent) ([]byte, err
 		event.X,
 		event.Y,
 		event.Zoom)
-	fc, err := LoadGeoJson()
+	fcs, err := LoadLayersJson()
 	if err != nil {
 		return nil, err
 	}
-	return GenerateMapVectorTile(fc, event)
+	return GenerateMapVectorTile(fcs, event)
 }
 
 func main () {
