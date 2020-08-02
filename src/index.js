@@ -17,7 +17,7 @@ const map = new mapboxgl.Map({
     version: 8,
     name: "imaginary",
     sources: {
-      imaginary: {
+      islands: {
         type: 'vector',
         tiles: [
           `${tileApiUrl}/{z}/{x}/{y}/islands.pbf`
@@ -43,13 +43,33 @@ const map = new mapboxgl.Map({
         }
       },
       {
-        id: 'imaginary',
+        id: 'islands',
         type: 'fill',
-        source: 'imaginary',
+        source: 'islands',
         'source-layer': 'islands',
         paint: {
           'fill-color': '#DCE89C',
           'fill-outline-color': '#000000'
+        }
+      },
+      {
+        id: 'islands-1',
+        type: 'fill',
+        source: 'islands',
+        'source-layer': 'islands-1',
+        paint: {
+          'fill-color': '#E0D5A6',
+          'fill-outline-color': '#A0A0A0'
+        }
+      },
+      {
+        id: 'islands-2',
+        type: 'fill',
+        source: 'islands',
+        'source-layer': 'islands-2',
+        paint: {
+          'fill-color': '#B5A598',
+          'fill-outline-color': '#A0A0A0'
         }
       },
       {
