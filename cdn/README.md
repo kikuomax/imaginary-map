@@ -63,8 +63,8 @@ You need the following software installed,
 ### Uploading GeoJSON files
 
 Suppose the following variable is defined,
-- `ISLANDS_GEO_JSON_VERSION`: version of the GeoJSON file for islands
-- `PAPERS_GEO_JSON_VERSION`: version of the GeoJSON file for papers
+- `ISLANDS_GEO_JSON_VERSION`: version of the GeoJSON file for islands; e.g., `ISLANDS_GEO_JSON_VERSION=v2`
+- `PAPERS_GEO_JSON_VERSION`: version of the GeoJSON file for papers; e.g., `PAPERS_GEO_JSON_VERSION=v2`
 
 1. Upload a GeoJSON file of islands.
 

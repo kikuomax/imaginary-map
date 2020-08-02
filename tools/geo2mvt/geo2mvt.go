@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/kikuomax/imaginary-map/cdn/common"
 	"github.com/paulmach/orb/encoding/mvt"
-	"github.com/paulmach/orb/geojson"
 	"github.com/paulmach/orb/maptile"
 	"github.com/paulmach/orb/simplify"
 	"io/ioutil"
@@ -12,7 +12,7 @@ import (
 	"os"
 )
 
-func LoadGeoJson (geoPath string) (*geojson.FeatureCollection, error) {
+func LoadGeoJson (geoPath string) (*common.NamedFeatureCollections, error) {
 	geoIn, err := os.Open(geoPath)
 	if err != nil {
 		return nil, err
@@ -22,11 +22,11 @@ func LoadGeoJson (geoPath string) (*geojson.FeatureCollection, error) {
 	if err != nil {
 		return nil, err
 	}
-	fc, err := geojson.UnmarshalFeatureCollection(jsonBytes)
+	fcs, err := common.LoadLayersJson(jsonBytes)
 	if err != nil {
 		return nil, err
 	}
-	return fc, err
+	return fcs, err
 }
 
 func SaveMvt (mvtPath string, mvtBytes []byte) error {
@@ -60,21 +60,21 @@ func main () {
 	geoPath := args[0]
 	mvtPath := args[1]
 	fmt.Printf("loading: %v\n", geoPath)
-	featureCollection, err := LoadGeoJson(geoPath)
+	featureCollections, err := LoadGeoJson(geoPath)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
 	fmt.Println("converting GeoJSON")
-	layer := mvt.NewLayer("test", featureCollection)
-	layer.ProjectToTile(maptile.New(
+	layers := mvt.NewLayers(*featureCollections)
+	layers.ProjectToTile(maptile.New(
 		uint32(*x),
 		uint32(*y),
 		maptile.Zoom(*z)))
-	layer.Clip(mvt.MapboxGLDefaultExtentBound)
-	layer.Simplify(simplify.DouglasPeucker(1.0))
-	layer.RemoveEmpty(1.0, 1.0)
-	mvtBytes, err := mvt.MarshalGzipped(mvt.Layers{ layer })
+	layers.Clip(mvt.MapboxGLDefaultExtentBound)
+	layers.Simplify(simplify.DouglasPeucker(1.0))
+	layers.RemoveEmpty(1.0, 1.0)
+	mvtBytes, err := mvt.MarshalGzipped(layers)
 	if err != nil {
 		log.Fatal(err)
 		return
